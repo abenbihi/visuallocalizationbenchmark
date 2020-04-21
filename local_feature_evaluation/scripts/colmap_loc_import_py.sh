@@ -44,7 +44,8 @@ fi
 db_dir="$PYDATA_DIR"cmu/meta/surveys/"$slice_id"/"$slice_id"_c"$cam_id"_db/
 q_dir="$PYDATA_DIR"cmu/meta/surveys/"$slice_id"/"$slice_id"_c"$cam_id"_"$survey_id"/
 img_dir="$CMU_IMG_DIR"
-feat_dir="$WS_DIR"/tf/image-matching-benchmark/dream_cpp/res/sift/cmu/
+#feat_dir="$WS_DIR"/tf/image-matching-benchmark/dream_cpp/res/sift/cmu/
+feat_dir="$WS_DIR"/tf/elf/res/cmu/elf/0/
 
 colmap_ws=res/cmu/"$feat_name"/"$slice_id"_c"$cam_id"_"$survey_id"/
 
@@ -72,31 +73,37 @@ if [ 0 -eq 1 ]; then
 
   # generate an empty reconstruction with the parameters of database images
   cp -r "$db_dir"/colmap_prior "$colmap_ws"/prior
+  cp "$q_dir"/colmap_prior/image_list.txt "$colmap_ws"/prior/query_fn.txt
 fi
 
 # imports pre-computed features with known camera params
 # TODO: When does the undistortion happen ?
 if [ 0 -eq 1 ]; then
-  cat "$colmap_ws"/prior/image_list.txt > "$colmap_ws"image_list.txt
-  cat "$q_dir"/colmap_prior/image_list.txt >> "$colmap_ws"image_list.txt
-  
   "$COLMAP_BIN" database_creator \
-    --database_path "$colmap_ws"/database.db \
-
-  "$COLMAP_BIN" feature_importer \
-    --database_path "$colmap_ws"/database.db \
-    --image_path "$img_dir" \
-    --import_path "$feat_dir" \
-    --image_list_path "$colmap_ws"image_list.txt \
-    --ImageReader.camera_model "$camera_model" \
-    --ImageReader.camera_params "$camera_params" 
+    --database_path "$colmap_ws"/database.db 
   
-  if [ $? -ne 0 ]; then
-    echo "Error during feature_importer."
-    exit 1
-  fi
 fi
 
+if [ 1 -eq 1 ]; then
+  cat "$colmap_ws"/prior/image_pairs_to_match_intra.txt > \
+    "$colmap_ws"/image_pairs_to_match.txt
+  cat "$q_dir"/colmap_prior/image_pairs_to_match_inter.txt >> \
+    "$colmap_ws"image_pairs_to_match.txt
+
+  python3 rec.py \
+    --colmap_ws "$colmap_ws" \
+    --feat_dir "$feat_dir" \
+    --slice_id "$slice_id" \
+    --cam_id "$cam_id" \
+    --survey_id "$survey_id"
+
+  #--dataset_path "$data_dir" \
+  #--colmap_path "$colmap_dir" \
+  #--method_name toto \
+  #--colmap_ws "$colmap_ws" \
+  #--feat_path "$feat_path"
+
+fi
 
 # specify img to match
 if [ 0 -eq 1 ]; then
@@ -118,7 +125,7 @@ if [ 0 -eq 1 ]; then
 fi
 
 # or specify features to match
-if [ 1 -eq 1 ]; then
+if [ 0 -eq 1 ]; then
   cat "$colmap_ws"prior/feat_pairs_to_match_intra_"$feat_name".txt > \
     "$colmap_ws"/feat_pairs_to_match.txt
 
