@@ -58,8 +58,8 @@ def recover_database_images_and_ids(args):
     meta_fn = "%s/prior/query_fn.txt"%args.colmap_ws
     meta = np.loadtxt(meta_fn, dtype=str)
     for i, image_name in enumerate(meta):
-        #if i%10==0:
-        #    print("q: %d/%d %s"%(i, fn_v.shape[0], image_name))
+        #if i%1==0:
+        #    print("q: %d/%d %s"%(img_id+i, img_id+meta.shape[0], image_name))
         images[image_name] = img_id + i
         cameras[image_name] = 1
     
@@ -91,8 +91,8 @@ def preprocess_reference_model(args):
 
     camera_parameters = {}
     for i, image_name in enumerate(fn_v):
-        if i%10==0:
-            print("%d/%d %s"%(i, fn_v.shape[0], image_name))
+        #if i%10==0:
+        #    print("%d/%d %s"%(i, fn_v.shape[0], image_name))
         qw, qx, qy, qz, tx, ty, tz = pose_v[i,:]
         qvec = np.array([qw, qx, qy, qz])
         t = np.array([tx, ty, tz])
@@ -103,6 +103,85 @@ def preprocess_reference_model(args):
         camera_parameters[image_name] = camera
     
     return camera_parameters
+
+
+def init_db(paths, images, cameras, args):
+    """ """
+    model = "OPENCV"
+    if args.cam_id == 0:
+        intrinsics = [868.993378, 866.063001, 525.942323,
+                420.042529, -0.399431, 0.188924, 0.000153,
+                0.000571]
+        #intrinsics = "868.993378 866.063001 525.942323 420.042529 -0.399431 0.188924 0.000153 0.000571"
+        #intrinsics = "868.9933 866.0630 525.9423 420.0425 -0.3994 0.1889 0.0001 0.0005"
+        intrinsics = np.array(intrinsics).astype(np.float64)
+        intrinsics = intrinsics.tostring()
+    else:
+        #intrinsics = [873.382641, 876.489513, 529.324138,
+        #        397.272397, -0.397066, 0.181925, 0.000176,
+        #        -0.000579]
+        intrinsics = "873.382641 876.489513 529.324138 397.272397 -0.397066 0.181925 0.000176 -0.000579"
+    #intrinsics = [str(l) for l in intrinsics]
+    #print(intrinsics)
+    H = 768
+    W = 1024
+
+    connection = sqlite3.connect(paths.database_path)
+    cursor = connection.cursor()
+    
+    # cam table
+    #str_=(  "CREATE TABLE IF NOT EXISTS cameras"
+    #        "   (camera_id            INTEGER  PRIMARY KEY AUTOINCREMENT  NOT NULL,"
+    #        "    model                INTEGER                             NOT NULL,"
+    #        "    width                INTEGER                             NOT NULL,"
+    #        "    height               INTEGER                             NOT NULL,"
+    #        "    params               BLOB,"
+    #        "    prior_focal_length   INTEGER                             NOT NULL);")
+    #cursor.execute(str_)
+    #connection.commit()
+    #
+    cam_id = args.cam_id
+    modelId = 4
+    str_ = "INSERT INTO cameras(camera_id, model, width, height, params, prior_focal_length)"
+    str_ += " VALUES(?, ?, ?, ?, ?, ?);"
+    cursor.execute(str_, (str(cam_id), str(modelId), str(W), str(H), intrinsics, "0"))
+    connection.commit()
+
+
+    ## image table
+    #str_ = ("CREATE TABLE IF NOT EXISTS images"
+    #        "   (image_id   INTEGER  PRIMARY KEY AUTOINCREMENT  NOT NULL,"
+    #        "    name       TEXT                                NOT NULL UNIQUE,"
+    #        "    camera_id  INTEGER                             NOT NULL,"
+    #        "    prior_qw   REAL,"
+    #        "    prior_qx   REAL,"
+    #        "    prior_qy   REAL,"
+    #        "    prior_qz   REAL,"
+    #        "    prior_tx   REAL,"
+    #        "    prior_ty   REAL,"
+    #        "    prior_tz   REAL,"
+    #        "CONSTRAINT image_id_check CHECK(image_id >= 0 and image_id < 100000),"
+    #        "FOREIGN KEY(camera_id) REFERENCES cameras(camera_id));")
+    #cursor.execute(str_)
+    #connection.commit()
+    #
+    #str_ = "CREATE UNIQUE INDEX IF NOT EXISTS index_name ON images(name);"
+    #cursor.execute(str_)
+    #connection.commit()
+
+    for image_name, image_id in images.items():
+        print("%s %d"%(image_name, image_id))
+        str_ = ("INSERT INTO images(image_id, name, camera_id, prior_qw, prior_qx, "
+                "prior_qy, prior_qz, prior_tx, prior_ty, prior_tz) VALUES(?, ?, ?, ?, ?, "
+                "?, ?, ?, ?, ?);")
+        cursor.execute(str_, (str(image_id), image_name, "1", "1.0", "0.0", "0.0", "0.0",
+            "0.0", "0.0", "0.0"))
+        connection.commit()
+
+    # Close the connection to the database.
+    cursor.close()
+    connection.close()
+
 
 
 def import_features(images, paths, args):
@@ -137,8 +216,6 @@ def match_features(images, paths, args):
     # Connect to the database.
     connection = sqlite3.connect(paths.database_path)
     cursor = connection.cursor()
-    cursor.execute("DELETE FROM matches;")
-    connection.commit()
 
     # Match the features and insert the matches in the database.
     print('Matching...')
@@ -302,12 +379,17 @@ if __name__ == "__main__":
     #shutil.copyfile(paths.dummy_database_path, paths.database_path)
     #
     
-    ## Reconstruction pipeline.
+    # create empty database
+
+    # import images and cameras
     camera_parameters = preprocess_reference_model(args)
     images, cameras = recover_database_images_and_ids(args)
 
+    # init empty database
+    init_db(paths, images, cameras, args)
+
     #import_features(images, paths, args)
-    match_features(images, paths, args)
+    #match_features(images, paths, args)
     #geometric_verification(paths, args)
     #reconstruct(paths, args)
     #register_queries(paths, args)

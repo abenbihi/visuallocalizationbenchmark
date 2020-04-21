@@ -49,7 +49,7 @@ feat_dir="$WS_DIR"/tf/elf/res/cmu/elf/0/
 
 colmap_ws=res/cmu/"$feat_name"/"$slice_id"_c"$cam_id"_"$survey_id"/
 
-if [ 0 -eq 1 ]; then
+if [ 1 -eq 1 ]; then
   if [ -d "$colmap_ws" ]; then
     while true; do
       read -p ""$colmap_ws" already exists. Do you want to overwrite it (y/n) ?" yn
@@ -78,17 +78,16 @@ fi
 
 # imports pre-computed features with known camera params
 # TODO: When does the undistortion happen ?
-if [ 0 -eq 1 ]; then
-  "$COLMAP_BIN" database_creator \
-    --database_path "$colmap_ws"/database.db 
-  
-fi
+cat "$colmap_ws"/prior/image_pairs_to_match_intra.txt > \
+  "$colmap_ws"/image_pairs_to_match.txt
+cat "$q_dir"/colmap_prior/image_pairs_to_match_inter.txt >> \
+  "$colmap_ws"image_pairs_to_match.txt
+
 
 if [ 1 -eq 1 ]; then
-  cat "$colmap_ws"/prior/image_pairs_to_match_intra.txt > \
-    "$colmap_ws"/image_pairs_to_match.txt
-  cat "$q_dir"/colmap_prior/image_pairs_to_match_inter.txt >> \
-    "$colmap_ws"image_pairs_to_match.txt
+
+  "$COLMAP_BIN" database_creator \
+    --database_path "$colmap_ws"/database.db 
 
   python3 rec.py \
     --colmap_ws "$colmap_ws" \
@@ -96,13 +95,16 @@ if [ 1 -eq 1 ]; then
     --slice_id "$slice_id" \
     --cam_id "$cam_id" \
     --survey_id "$survey_id"
+fi
 
-  #--dataset_path "$data_dir" \
-  #--colmap_path "$colmap_dir" \
-  #--method_name toto \
-  #--colmap_ws "$colmap_ws" \
-  #--feat_path "$feat_path"
-
+if [ 0 -eq 1 ]; then
+  "$COLMAP_BIN" feature_importer \
+    --database_path "$colmap_ws"/database.db \
+    --image_path "$img_dir" \
+    --import_path "$feat_dir" \
+    --image_list_path "$colmap_ws"image_list.txt \
+    --ImageReader.camera_model "$camera_model" \
+    --ImageReader.camera_params "$camera_params" 
 fi
 
 # specify img to match
