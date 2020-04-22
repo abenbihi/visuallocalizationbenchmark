@@ -112,65 +112,29 @@ def init_db(paths, images, cameras, args):
         intrinsics = [868.993378, 866.063001, 525.942323,
                 420.042529, -0.399431, 0.188924, 0.000153,
                 0.000571]
-        #intrinsics = "868.993378 866.063001 525.942323 420.042529 -0.399431 0.188924 0.000153 0.000571"
-        #intrinsics = "868.9933 866.0630 525.9423 420.0425 -0.3994 0.1889 0.0001 0.0005"
-        intrinsics = np.array(intrinsics).astype(np.float64)
-        intrinsics = intrinsics.tostring()
     else:
-        #intrinsics = [873.382641, 876.489513, 529.324138,
-        #        397.272397, -0.397066, 0.181925, 0.000176,
-        #        -0.000579]
-        intrinsics = "873.382641 876.489513 529.324138 397.272397 -0.397066 0.181925 0.000176 -0.000579"
-    #intrinsics = [str(l) for l in intrinsics]
-    #print(intrinsics)
+        intrinsics = [873.382641, 876.489513, 529.324138,
+                397.272397, -0.397066, 0.181925, 0.000176,
+                -0.000579]
+    intrinsics = np.array(intrinsics).astype(np.float64)
+    intrinsics = intrinsics.tostring()
     H = 768
     W = 1024
 
     connection = sqlite3.connect(paths.database_path)
     cursor = connection.cursor()
     
-    # cam table
-    #str_=(  "CREATE TABLE IF NOT EXISTS cameras"
-    #        "   (camera_id            INTEGER  PRIMARY KEY AUTOINCREMENT  NOT NULL,"
-    #        "    model                INTEGER                             NOT NULL,"
-    #        "    width                INTEGER                             NOT NULL,"
-    #        "    height               INTEGER                             NOT NULL,"
-    #        "    params               BLOB,"
-    #        "    prior_focal_length   INTEGER                             NOT NULL);")
-    #cursor.execute(str_)
-    #connection.commit()
-    #
+    # insert camera
     cam_id = args.cam_id
     modelId = 4
     str_ = "INSERT INTO cameras(camera_id, model, width, height, params, prior_focal_length)"
     str_ += " VALUES(?, ?, ?, ?, ?, ?);"
-    cursor.execute(str_, (str(cam_id), str(modelId), str(W), str(H), intrinsics, "0"))
+    cursor.execute(str_, ("1", str(modelId), str(W), str(H), intrinsics, "0"))
     connection.commit()
 
-
-    ## image table
-    #str_ = ("CREATE TABLE IF NOT EXISTS images"
-    #        "   (image_id   INTEGER  PRIMARY KEY AUTOINCREMENT  NOT NULL,"
-    #        "    name       TEXT                                NOT NULL UNIQUE,"
-    #        "    camera_id  INTEGER                             NOT NULL,"
-    #        "    prior_qw   REAL,"
-    #        "    prior_qx   REAL,"
-    #        "    prior_qy   REAL,"
-    #        "    prior_qz   REAL,"
-    #        "    prior_tx   REAL,"
-    #        "    prior_ty   REAL,"
-    #        "    prior_tz   REAL,"
-    #        "CONSTRAINT image_id_check CHECK(image_id >= 0 and image_id < 100000),"
-    #        "FOREIGN KEY(camera_id) REFERENCES cameras(camera_id));")
-    #cursor.execute(str_)
-    #connection.commit()
-    #
-    #str_ = "CREATE UNIQUE INDEX IF NOT EXISTS index_name ON images(name);"
-    #cursor.execute(str_)
-    #connection.commit()
-
+    # insert images
     for image_name, image_id in images.items():
-        print("%s %d"%(image_name, image_id))
+        #print("%s %d"%(image_name, image_id))
         str_ = ("INSERT INTO images(image_id, name, camera_id, prior_qw, prior_qx, "
                 "prior_qy, prior_qz, prior_tx, prior_ty, prior_tz) VALUES(?, ?, ?, ?, ?, "
                 "?, ?, ?, ?, ?);")
@@ -193,7 +157,13 @@ def import_features(images, paths, args):
     for image_name, image_id in tqdm(images.items(), total=len(images.items())):
         features_path = "%s/%s.txt"%(paths.feature_path, image_name)
         #print(features_path)
+        #print(features_path)
+        
         features = np.loadtxt(features_path)
+        
+        #features = [l.split("\n")[0].split(" ") for l in open(features_path, "r").readlines()]
+        #features = np.array(features[1:])
+
         keypoints = features[:,:4].astype(np.float32)
         keypoints_str = keypoints.tostring()
         cursor.execute("INSERT INTO keypoints(image_id, rows, cols, data) VALUES(?, ?, ?, ?);",
@@ -217,6 +187,9 @@ def match_features(images, paths, args):
     connection = sqlite3.connect(paths.database_path)
     cursor = connection.cursor()
 
+    cursor.execute("DELETE FROM matches;")
+    connection.commit()
+
     # Match the features and insert the matches in the database.
     print('Matching...')
     
@@ -231,8 +204,16 @@ def match_features(images, paths, args):
         features_path1 = "%s/%s.txt"%(paths.feature_path, image_name1)
         features_path2 = "%s/%s.txt"%(paths.feature_path, image_name2)
         
-        descriptors1 = np.loadtxt(features_path1)[4:,:]
-        descriptors2 = np.loadtxt(features_path2)[4:,:]
+        descriptors1 = np.loadtxt(features_path1)[:,4:]
+        descriptors2 = np.loadtxt(features_path2)[:,4:]
+
+        #features = [l.split("\n")[0].split(" ") for l in open(features_path1, "r").readlines()]
+        #descriptors1 = np.array(features[1:])[:,4:].astype(np.float32)
+
+        #features = [l.split("\n")[0].split(" ") for l in open(features_path2, "r").readlines()]
+        #descriptors2 = np.array(features[1:])[:,4:].astype(np.float32)
+        ##print(descriptors2.shape)
+
 
         descriptors1 = torch.from_numpy(descriptors1).to(device)
         descriptors2 = torch.from_numpy(descriptors2).to(device)      
@@ -260,9 +241,13 @@ def match_features(images, paths, args):
 def geometric_verification(paths, args):
     print('Running geometric verification...')
 
-    subprocess.call([os.path.join(args.colmap_path, 'colmap'), 'matches_importer',
+    WS_DIR= "/home/gpu_user/assia/ws/"
+    colmap_path = "%s/tools/colmap/build/src/exe/colmap"%(WS_DIR)
+    match_list_path = "%s/image_pairs_to_match.txt"%(args.colmap_ws)
+    print(match_list_path)
+    subprocess.call([colmap_path, 'matches_importer',
                      '--database_path', paths.database_path,
-                     '--match_list_path', paths.match_list_path,
+                     '--match_list_path', match_list_path,
                      '--match_type', 'pairs'])
 
 
@@ -388,8 +373,8 @@ if __name__ == "__main__":
     # init empty database
     init_db(paths, images, cameras, args)
 
-    #import_features(images, paths, args)
-    #match_features(images, paths, args)
+    import_features(images, paths, args)
+    match_features(images, paths, args)
     #geometric_verification(paths, args)
     #reconstruct(paths, args)
     #register_queries(paths, args)
