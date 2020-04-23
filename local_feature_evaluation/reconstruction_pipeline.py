@@ -149,10 +149,22 @@ def import_features(images, paths, args):
     # Import the features.
     print('Importing features...')
     
+    false_count = 0
+    count = 0
     for image_name, image_id in tqdm(images.items(), total=len(images.items())):
-        features_path = os.path.join(paths.image_path, '%s.%s' % (image_name, args.method_name))
-        
-        keypoints = np.load(features_path)['keypoints']
+        #features_path = os.path.join(paths.image_path, '%s.%s' % (image_name, args.method_name))
+        features_path = "%s/%s.txt"%(paths.feature_path, image_name)
+
+        if not os.path.exists(features_path):
+            #print(features_path)
+            keypoints = np.arange(8).reshape((4,2))
+            false_count += 1
+        else:
+            #keypoints = np.load(features_path)['keypoints']
+            keypoints = np.loadtxt(features_path)
+            keypoints = keypoints[:,:4]
+        count += 1
+
         n_keypoints = keypoints.shape[0]
         
         # Keep only x, y coordinates.
@@ -165,6 +177,7 @@ def import_features(images, paths, args):
                        (image_id, keypoints.shape[0], keypoints.shape[1], keypoints_str))
         connection.commit()
     
+    print("%d/%d"%(count, false_count))
     # Close the connection to the database.
     cursor.close()
     connection.close()
@@ -192,11 +205,18 @@ def match_features(images, paths, args):
     for raw_pair in tqdm(raw_pairs, total=len(raw_pairs)):
         image_name1, image_name2 = raw_pair.strip('\n').split(' ')
         
-        features_path1 = os.path.join(paths.image_path, '%s.%s' % (image_name1, args.method_name))
-        features_path2 = os.path.join(paths.image_path, '%s.%s' % (image_name2, args.method_name))
+        #features_path1 = os.path.join(paths.image_path, '%s.%s' % (image_name1, args.method_name))
+        #features_path2 = os.path.join(paths.image_path, '%s.%s' % (image_name2, args.method_name))
+        #descriptors1 = torch.from_numpy(np.load(features_path1)['descriptors']).to(device)
+        #descriptors2 = torch.from_numpy(np.load(features_path2)['descriptors']).to(device)
+        
+        features_path1 = "%s/%s.txt"%(paths.feature_path, image_name1)
+        features_path2 = "%s/%s.txt"%(paths.feature_path, image_name2)
+        descriptors1 = np.loadtxt(features_path1)[:,4:]
+        descriptors2 = np.loadtxt(features_path2)[:,4:]
+        descriptors1 = torch.from_numpy(descriptors1).to(device)
+        descriptors2 = torch.from_numpy(descriptors2).to(device)
 
-        descriptors1 = torch.from_numpy(np.load(features_path1)['descriptors']).to(device)
-        descriptors2 = torch.from_numpy(np.load(features_path2)['descriptors']).to(device)
         matches = mutual_nn_matcher(descriptors1, descriptors2).astype(np.uint32)
 
         image_id1, image_id2 = images[image_name1], images[image_name2]
@@ -220,6 +240,7 @@ def match_features(images, paths, args):
 
 def geometric_verification(paths, args):
     print('Running geometric verification...')
+    print(paths.match_list_path)
 
     subprocess.call([os.path.join(args.colmap_path, 'colmap'), 'matches_importer',
                      '--database_path', paths.database_path,
@@ -303,6 +324,8 @@ if __name__ == "__main__":
     parser.add_argument('--dataset_path', required=True, help='Path to the dataset')
     parser.add_argument('--colmap_path', required=True, help='Path to the COLMAP executable folder')
     parser.add_argument('--method_name', required=True, help='Name of the method')
+    parser.add_argument('--res_path', type=str, required=True)
+    parser.add_argument('--feat_path', type=str, required=True)
     args = parser.parse_args()
 
     # Torch settings for the matcher.
@@ -312,16 +335,19 @@ if __name__ == "__main__":
     # Create the extra paths.
     paths = types.SimpleNamespace()
     paths.dummy_database_path = os.path.join(args.dataset_path, 'database.db')
-    paths.database_path = os.path.join(args.dataset_path, args.method_name + '.db')
-    paths.image_path = os.path.join(args.dataset_path, 'images', 'images_upright')
-    paths.features_path = os.path.join(args.dataset_path, args.method_name)
     paths.reference_model_path = os.path.join(args.dataset_path, '3D-models')
     paths.match_list_path = os.path.join(args.dataset_path, 'image_pairs_to_match.txt')
-    paths.empty_model_path = os.path.join(args.dataset_path, 'sparse-%s-empty' % args.method_name)
-    paths.database_model_path = os.path.join(args.dataset_path, 'sparse-%s-database' % args.method_name)
-    paths.final_model_path = os.path.join(args.dataset_path, 'sparse-%s-final' % args.method_name)
-    paths.final_txt_model_path = os.path.join(args.dataset_path, 'sparse-%s-final-txt' % args.method_name)
-    paths.prediction_path = os.path.join(args.dataset_path, 'Aachen_eval_[%s].txt' % args.method_name)
+    #paths.match_list_path = os.path.join(args.dataset_path, 'image_pairs_to_match_light.txt')
+    paths.image_path = os.path.join(args.dataset_path, 'images', 'images_upright')
+    paths.feature_path = args.feat_path
+
+    paths.database_path = "%s/database.db"%args.res_path
+    paths.empty_model_path = "%s/sparse-%s-empty"%(args.res_path, args.method_name)
+    paths.database_model_path = "%s/sparse-%s-database"%(args.res_path, args.method_name)
+    paths.final_model_path = "%s/sparse-%s-final"%(args.res_path, args.method_name)
+    paths.final_txt_model_path = "%s/sparse-%s-final-txt"%(args.res_path, args.method_name)
+    paths.prediction_path = "%s/Aachen_eval_%s.txt"%(args.res_path, args.method_name)
+
     
     # Create a copy of the dummy database.
     if os.path.exists(paths.database_path):
@@ -332,8 +358,10 @@ if __name__ == "__main__":
     camera_parameters = preprocess_reference_model(paths, args)
     images, cameras = recover_database_images_and_ids(paths, args)
     generate_empty_reconstruction(images, cameras, camera_parameters, paths, args)
+    
     import_features(images, paths, args)
     match_features(images, paths, args)
+    
     geometric_verification(paths, args)
     reconstruct(paths, args)
     register_queries(paths, args)
