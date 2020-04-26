@@ -84,9 +84,6 @@ if [ 1 -eq 1 ]; then
   cat "$colmap_ws"/prior/image_pairs_to_match_intra.txt > "$colmap_ws"/image_pairs_to_match.txt
   cat "$q_dir"/colmap_prior/image_pairs_to_match_inter_"$pair_name".txt >> \
     "$colmap_ws"image_pairs_to_match.txt
-
-  #head -n 20 "$colmap_ws"/prior/image_pairs_to_match_intra.txt > "$colmap_ws"/image_pairs_to_match.txt
-  #head -n 20 "$q_dir"/colmap_prior/image_pairs_to_match_inter.txt >> "$colmap_ws"image_pairs_to_match.txt
 fi
 
 # TODO: When does the undistortion happen ?
@@ -97,6 +94,10 @@ if [ 1 -eq 1 ]; then
     --slice_id "$slice_id" \
     --cam_id "$cam_id" \
     --survey_id "$survey_id"
+  if [ "$?" -ne 0 ]; then
+    echo "Error in matches insertion"
+    exit 1
+  fi
 fi
 
 
@@ -115,6 +116,7 @@ fi
 
 # triangulate the database observations in the 3D model at fixed intrinsics
 if [ 1 -eq 1 ]; then
+  #echo "img_dir: "$img_dir""
   "$COLMAP_BIN" point_triangulator \
     --database_path "$colmap_ws"/database.db \
     --image_path "$img_dir" \
