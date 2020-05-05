@@ -1,39 +1,6 @@
-"""Script to run localisation on Extended-CMU-Seasons."""
-import argparse
 import os
-import types
-
-import cv2
 import numpy as np
 from pyquaternion import Quaternion
-
-def recover_query_poses(gt_pose_fn, colmap_out_fn, out_fn):
-    """
-    Writes the estimated query poses to file with the expected format and
-    convention.
-
-    Copied from
-    https://github.com/tsattler/visuallocalizationbenchmark/tree/master/local_feature_evaluation
-    """
-    print('Recovering query poses...')
-    
-    # load query img names
-    query_names = np.loadtxt(gt_pose_fn, dtype=str)[:,0]
-    
-    # load img pose estimation
-    with open(colmap_out_fn, "r") as f:
-        raw_extrinsics = f.readlines()
-
-    f = open(out_fn, "w")
-    # Skip the header.
-    for extrinsics in raw_extrinsics[4 :: 2]:
-        extrinsics = extrinsics.strip('\n').split(' ')
-        image_name = extrinsics[-1]
-        if image_name in query_names:
-            # Skip the IMAGE_ID ([0]), CAMERA_ID ([-2]), and IMAGE_NAME ([-1]).
-            #f.write('%s %s\n' % (image_name.split('/')[-1], ' '.join(extrinsics[1 : -2])))
-            f.write('%s %s\n' % (image_name, ' '.join(extrinsics[1 : -2])))
-    f.close()
 
 
 def pose_accuracy(gt_q, gt_t, est_q, est_t):
@@ -54,22 +21,44 @@ def pose_accuracy(gt_q, gt_t, est_q, est_t):
     return error_translation, error_rotation
 
 
-def compute_metrics(gt_pose_fn, est_pose_fn):#paths, args):
-    """Writes the estimated query poses to file with the expected format and
-    convention.
+def main():
+    """ """
+    ws_dir = "/home/gpu_user/assia/ws/"
+    meta_dir = "%s/datasets/pydata/cmu/meta/surveys/"%ws_dir
+
+    slice_id = 5
+    # gather poses
+    gt_pose_l = []
+    est_pose_l = []
+    for cam_id in range(2):
+        for survey_id in range(11):
+            survey_dir = "%s/%d/%d_c%d_%d"%(meta_dir, slice_id, slice_id,
+                    cam_id, survey_id)
+            #print(survey_dir)
+            gt_pose_fn = "%s/pose.txt"%survey_dir
+            gt_pose_v = np.loadtxt(gt_pose_fn, dtype=str)
+            gt_pose_l.append(gt_pose_v)
+
+            est_pose_fn = "res/cmu/elf/%d_c%d_%d/test_images.txt"%(slice_id, cam_id,
+                    survey_id)
+            if not os.path.exists(est_pose_fn):
+                print("%d %d %d gt est: %d / %d"%(slice_id, cam_id, survey_id, gt_pose_v.shape[0], 0))
+                continue
+            est_pose_v = np.loadtxt(est_pose_fn, dtype=str).reshape((-1,8))
+            est_pose_l.append(est_pose_v)
+
+            print("%d %d %d gt est: %d / %d"%(slice_id, cam_id, survey_id,
+                 est_pose_v.shape[0], gt_pose_v.shape[0]))
     
-    Copied from
-    https://github.com/tsattler/visuallocalizationbenchmark/tree/master/local_feature_evaluation
-    """
-    print('Recovering query poses...')
-    # get gt poses
-    gt_pose_v = np.loadtxt(gt_pose_fn, dtype=str)
+    # gt
+    gt_pose_v = np.vstack(gt_pose_l)
     gt_fn_v = gt_pose_v[:,0]
     gt_pose_v = gt_pose_v[:,1:].astype(np.float32) # q_c_w, c
     gt_ok = (gt_pose_v[:,0].astype(np.int) != -1).astype(np.int32)
     gt_num = gt_fn_v.shape[0]
     gt_found = np.zeros(gt_num, np.uint8)
-
+    
+    # cam center -> cam translation
     gt_t_l = []
     for l in gt_pose_v:
         qw, qx, qy, qz, cx, cy, cz = [float(ll) for ll in l]
@@ -79,13 +68,26 @@ def compute_metrics(gt_pose_fn, est_pose_fn):#paths, args):
         gt_t_l.append(t)
     gt_t_v =np.array(gt_t_l)
     gt_pose_v[:,4:] = gt_t_v # q_c_w, t_c_w
+    
+    # save gt poses (for debug)
+    fn_v = np.expand_dims(np.array([l.split("/")[-1] for l in gt_fn_v]), 1)
+    all_gt_fn = "res/cmu/elf/slice%d_gt.txt"%slice_id
+    np.savetxt(all_gt_fn, np.hstack((fn_v, gt_pose_v.astype(str))), fmt="%s")
 
-    #print(est_pose_fn)
-    est_pose_v = np.loadtxt(est_pose_fn, dtype=str).reshape((-1,8))
+    # estimated poses
+    est_pose_v = np.vstack(est_pose_l)
     est_fn_v = est_pose_v[:,0]
     est_pose_v = est_pose_v[:,1:].astype(np.float32)
     est_num = est_pose_v.shape[0]
-    
+
+    # save estimated pose with expected format
+    fn_v = np.expand_dims(np.array([l.split("/")[-1] for l in est_fn_v]), 1)
+    print(est_pose_v.shape)
+    all_fn = "res/cmu/elf/slice%d.txt"%slice_id
+    np.savetxt(all_fn, np.hstack((fn_v, est_pose_v.astype(str))), fmt="%s")
+
+    exit(0) 
+    # compute error (debug the same metric as the website)
     error_t_l = []
     error_r_l = []
     for idx, est_fn in enumerate(est_fn_v):
@@ -122,13 +124,5 @@ def compute_metrics(gt_pose_fn, est_pose_fn):#paths, args):
 
 
 
-
-if __name__ == "__main__":    
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--gt_pose_fn", type=str)
-    parser.add_argument("--colmap_pose_fn", type=str)
-    parser.add_argument("--est_pose_fn", type=str)
-    args = parser.parse_args()
-
-    recover_query_poses(args.gt_pose_fn, args.colmap_pose_fn, args.est_pose_fn)
-    #compute_metrics(args.gt_pose_fn, args.est_pose_fn)
+if __name__=="__main__":
+    main()
