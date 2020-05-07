@@ -19,3 +19,4 @@ CMU_IMG_DIR="$WS_DIR"datasets/Extended-CMU-Seasons/bgr/
 CMU_IMG_DIR=/media/abenbihi/My\ Passport/ws/datasets/Extended-CMU-Seasons/bgr/
 
 #WASABI_DIR="$WS_DIR"/tf/wasabi/
+TOURISM_DIR="$WS_DIR"/datasets/tourism/
