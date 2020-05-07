@@ -23,10 +23,17 @@ def pose_accuracy(gt_q, gt_t, est_q, est_t):
 
 def main():
     """ """
-    ws_dir = "/home/gpu_user/assia/ws/"
+    machine = 0
+    if machine == 1:
+        ws_dir = "/home/gpu_user/assia/ws/"
+    elif machine == 0:
+        ws_dir = "/home/abenbihi/ws/"
+    else:
+        raise ValueError("No machine %d"%machine)
+
     meta_dir = "%s/datasets/pydata/cmu/meta/surveys/"%ws_dir
 
-    slice_id = 5
+    slice_id = 17
     # gather poses
     gt_pose_l = []
     est_pose_l = []
@@ -39,11 +46,18 @@ def main():
             gt_pose_v = np.loadtxt(gt_pose_fn, dtype=str)
             gt_pose_l.append(gt_pose_v)
 
-            est_pose_fn = "res/cmu/elf/%d_c%d_%d/test_images.txt"%(slice_id, cam_id,
-                    survey_id)
+            if machine == 1:
+                est_pose_fn = "res/cmu/elf/%d_c%d_%d/test_images.txt"%(slice_id, cam_id, survey_id)
+            elif machine == 0:
+                est_pose_fn = "res/cmu/elf/slice%d/%d_c%d_%d.txt"%(slice_id, slice_id, cam_id, survey_id)
+                #print(est_pose_fn)
             if not os.path.exists(est_pose_fn):
                 print("%d %d %d gt est: %d / %d"%(slice_id, cam_id, survey_id, gt_pose_v.shape[0], 0))
                 continue
+            if os.stat(est_pose_fn).st_size==0:
+                print("%d %d %d gt est: %d / %d fail"%(slice_id, cam_id, survey_id, gt_pose_v.shape[0], 0))
+                continue
+
             est_pose_v = np.loadtxt(est_pose_fn, dtype=str).reshape((-1,8))
             est_pose_l.append(est_pose_v)
 
