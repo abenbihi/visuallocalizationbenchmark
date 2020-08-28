@@ -24,6 +24,8 @@ from utils import quaternion_to_rotation_matrix, camera_center_to_translation
 
 import sys
 IS_PYTHON3 = sys.version_info[0] >= 3
+    
+DEBUG = (0==1) # run the reconstruction only a subset of images
 
 def array_to_blob(array):
     if IS_PYTHON3:
@@ -148,47 +150,50 @@ def import_features(images, paths, args):
 
     # Import the features.
     print('Importing features...')
+    if DEBUG:
+        fns = np.loadtxt("%s/fn.txt"%paths.scene_path, dtype=str)
     
     false_count = 0
     count = 0
+    day_count = 0
     for image_name, image_id in tqdm(images.items(), total=len(images.items())):
-        #features_path = os.path.join(paths.image_path, '%s.%s' % (image_name, args.method_name))
+        if "query/day" in image_name:
+            day_count += 1
+            #exit(0)
         features_path = "%s/%s.txt"%(paths.feature_path, image_name)
         #print(features_path)
 
-        # load features written in colmap format
-        lines = [l.split("\n")[0] for l in open(features_path).readlines()]
-        header = lines[0]
-        features = np.array([l.split(" ") for l in lines[1:]])
-        #print(header)
-        #print(features.shape)
-        keypoints = features[:,:4].astype(np.float32)
+        if not os.path.exists(features_path):
+            keypoints = np.arange(8).reshape((4,2))
+            false_count += 1
+            # I did not compute features for this img because it is not matched
+            # later i.e. not used
+            #continue
+        # debug (process only a subset of the scene)
+        elif DEBUG and (image_name.split(".")[0] not in fns):
+            keypoints = np.arange(8).reshape((4,2)).astype(np.float32)
+            false_count += 1
+            #continue
+        else:
+            # load features written in colmap format
+            lines = [l.split("\n")[0] for l in open(features_path).readlines()]
+            header = lines[0]
+            features = np.array([l.split(" ") for l in lines[1:]])
+            #print(header)
+            #print(features.shape)
+            keypoints = features[:,:2].astype(np.float32)
+            count += 1
         
-        ## load features written as a matrix
-        #if not os.path.exists(features_path):
-        #    #print(features_path)
-        #    keypoints = np.arange(8).reshape((4,2))
-        #    false_count += 1
-        #else:
-        #    #keypoints = np.load(features_path)['keypoints']
-        #    keypoints = np.loadtxt(features_path)
-        #    keypoints = keypoints[:,:4]
-
-        count += 1
-
-        n_keypoints = keypoints.shape[0]
-        
-        # Keep only x, y coordinates.
-        keypoints = keypoints[:, : 2]
         # Add placeholder scale, orientation.
+        n_keypoints = keypoints.shape[0]
         keypoints = np.concatenate([keypoints, np.ones((n_keypoints, 1)), np.zeros((n_keypoints, 1))], axis=1).astype(np.float32)
-        
         keypoints_str = keypoints.tostring()
         cursor.execute("INSERT INTO keypoints(image_id, rows, cols, data) VALUES(?, ?, ?, ?);",
                        (image_id, keypoints.shape[0], keypoints.shape[1], keypoints_str))
         connection.commit()
     
-    print("%d/%d"%(count, false_count))
+    print("day_count: %d"%day_count)
+    #print("%d/%d"%(count, false_count))
     # Close the connection to the database.
     cursor.close()
     connection.close()
@@ -208,44 +213,34 @@ def match_features(images, paths, args):
 
     # Match the features and insert the matches in the database.
     print('Matching...')
+    if DEBUG:
+        subset_matches = [l.split("\n")[0] for l in 
+            open("%s/sorted_pairs.txt"%paths.scene_path).readlines()]
 
     with open(paths.match_list_path, 'r') as f:
         raw_pairs = f.readlines()
     
     image_pair_ids = set()
-    for raw_pair in tqdm(raw_pairs, total=len(raw_pairs)):
+    for match_id, raw_pair in enumerate(tqdm(raw_pairs, total=len(raw_pairs))):
         image_name1, image_name2 = raw_pair.strip('\n').split(' ')
-        
-        #features_path1 = os.path.join(paths.image_path, '%s.%s' % (image_name1, args.method_name))
-        #features_path2 = os.path.join(paths.image_path, '%s.%s' % (image_name2, args.method_name))
-        #descriptors1 = torch.from_numpy(np.load(features_path1)['descriptors']).to(device)
-        #descriptors2 = torch.from_numpy(np.load(features_path2)['descriptors']).to(device)
-        
-        features_path1 = "%s/%s.txt"%(paths.feature_path, image_name1)
-        features_path2 = "%s/%s.txt"%(paths.feature_path, image_name2)
-
-        # load features written in colmap format
-        lines = [l.split("\n")[0] for l in open(features_path1).readlines()]
-        descriptors1 = np.array([l.split(" ") for l in lines[1:]])[:,4:]
-        descriptors1 = descriptors1.astype(np.float32)
-        lines = [l.split("\n")[0] for l in open(features_path2).readlines()]
-        descriptors2 = np.array([l.split(" ") for l in lines[1:]])[:,4:]
-        descriptors2 = descriptors2.astype(np.float32)
-
-        #print(descriptors2[:3,:50])
-
-        ## load features written as a matrix
-        #descriptors1 = np.loadtxt(features_path1)[:,4:]
-        #descriptors2 = np.loadtxt(features_path2)[:,4:]
-        
-        descriptors1 = torch.from_numpy(descriptors1).to(device)
-        descriptors2 = torch.from_numpy(descriptors2).to(device)
-        matches = mutual_nn_matcher(descriptors1, descriptors2).astype(np.uint32)
-        print(matches)
-        print("%d/%d\t/%d/%d"%(
-            np.max(matches[:,0]),descriptors1.shape[0], 
-            np.max(matches[:,1]), descriptors2.shape[0]))
-        exit(0)
+        #if "%s %s"%(image_name1.split(".")[0], image_name2.split(".")[0]) not in subset_matches:
+        if (DEBUG) and ("%s %s"%(image_name1, image_name2) not in subset_matches):
+            matches = np.array([[0,0],[1,1]]).astype(np.uint32)
+        #    print("KO %s %s"%(image_name1.split(".")[0], image_name2.split(".")[0]))
+        else:
+            #print("OK %s %s"%(image_name1.split(".")[0], image_name2.split(".")[0]))
+            match_path = "%s/%d.txt"%(args.match_path, match_id)
+            matches = np.loadtxt(match_path, dtype=str).reshape((-1,2))
+            #print("%s.jpg"%matches[0,0],image_name1)
+            assert(("%s.jpg"%matches[0,0])==image_name1)
+            assert(("%s.jpg"%matches[0,1])==image_name2)
+            if (matches.shape[0] == 1):
+                # only the first line holding the image names i.e. no matches
+                #print("%d %s %s: no matches"%(match_id, image_name1, image_name2))
+                matches = np.array([[0,0],[1,1]]).astype(np.uint32)
+                #continue
+            else:
+                matches = matches[1:,:].reshape((-1,2)).astype(np.uint32)
 
         image_id1, image_id2 = images[image_name1], images[image_name2]
         image_pair_id = image_ids_to_pair_id(image_id1, image_id2)
@@ -354,6 +349,9 @@ if __name__ == "__main__":
     parser.add_argument('--method_name', required=True, help='Name of the method')
     parser.add_argument('--res_path', type=str, required=True)
     parser.add_argument('--feat_path', type=str, required=True)
+    parser.add_argument('--match_path', type=str, required=True)
+    parser.add_argument("--match_list", type=str, required=True)
+    parser.add_argument('--scene_path', type=str, required=True)
     args = parser.parse_args()
 
     # Torch settings for the matcher.
@@ -364,10 +362,15 @@ if __name__ == "__main__":
     paths = types.SimpleNamespace()
     paths.dummy_database_path = os.path.join(args.dataset_path, 'database.db')
     paths.reference_model_path = os.path.join(args.dataset_path, '3D-models')
-    paths.match_list_path = os.path.join(args.dataset_path, 'image_pairs_to_match.txt')
+
+    #paths.match_list_path = os.path.join(args.scene_path, "sorted_pairs.txt")
+    paths.match_list_path = args.match_list #path.join(args.dataset_path, 'image_pairs_to_match.txt')
     #paths.match_list_path = os.path.join(args.dataset_path, 'image_pairs_to_match_light.txt')
+
     paths.image_path = os.path.join(args.dataset_path, 'images', 'images_upright')
     paths.feature_path = args.feat_path
+    paths.match_path = args.match_path
+    paths.scene_path = args.scene_path
 
     paths.database_path = "%s/database.db"%args.res_path
     paths.empty_model_path = "%s/sparse-%s-empty"%(args.res_path, args.method_name)
@@ -375,7 +378,6 @@ if __name__ == "__main__":
     paths.final_model_path = "%s/sparse-%s-final"%(args.res_path, args.method_name)
     paths.final_txt_model_path = "%s/sparse-%s-final-txt"%(args.res_path, args.method_name)
     paths.prediction_path = "%s/Aachen_eval_%s.txt"%(args.res_path, args.method_name)
-
     
     # Create a copy of the dummy database.
     if os.path.exists(paths.database_path):
@@ -385,12 +387,14 @@ if __name__ == "__main__":
     # Reconstruction pipeline.
     camera_parameters = preprocess_reference_model(paths, args)
     images, cameras = recover_database_images_and_ids(paths, args)
+    #print(images)
+    #exit(0)
     generate_empty_reconstruction(images, cameras, camera_parameters, paths, args)
     
     import_features(images, paths, args)
     match_features(images, paths, args)
-    #
-    #geometric_verification(paths, args)
-    #reconstruct(paths, args)
-    #register_queries(paths, args)
-    #recover_query_poses(paths, args)
+    
+    geometric_verification(paths, args)
+    reconstruct(paths, args)
+    register_queries(paths, args)
+    recover_query_poses(paths, args)
