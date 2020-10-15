@@ -25,7 +25,7 @@ from utils import quaternion_to_rotation_matrix, camera_center_to_translation
 import sys
 IS_PYTHON3 = sys.version_info[0] >= 3
     
-DEBUG = (0==1) # run the reconstruction only a subset of images
+DEBUG = (1==1) # run the reconstruction only a subset of images
 
 def array_to_blob(array):
     if IS_PYTHON3:
@@ -230,6 +230,8 @@ def match_features(images, paths, args):
         else:
             #print("OK %s %s"%(image_name1.split(".")[0], image_name2.split(".")[0]))
             match_path = "%s/%d.txt"%(args.match_path, match_id)
+            print(match_path)
+            exit(0)
             matches = np.loadtxt(match_path, dtype=str).reshape((-1,2))
             #print("%s.jpg"%matches[0,0],image_name1)
             assert(("%s.jpg"%matches[0,0])==image_name1)
@@ -314,15 +316,21 @@ def recover_query_poses(paths, args):
     
     # Recover query names.
     query_image_list_path = os.path.join(args.dataset_path, 'queries/night_time_queries_with_intrinsics.txt')
-    
     with open(query_image_list_path) as f:
         raw_queries = f.readlines()
-    
     query_names = set()
     for raw_query in raw_queries:
         raw_query = raw_query.strip('\n').split(' ')
         query_name = raw_query[0]
         query_names.add(query_name)
+    query_image_list_path = os.path.join(args.dataset_path, 'queries/day_time_queries_with_intrinsics.txt')
+    with open(query_image_list_path) as f:
+        raw_queries = f.readlines()
+    for raw_query in raw_queries:
+        raw_query = raw_query.strip('\n').split(' ')
+        query_name = raw_query[0]
+        query_names.add(query_name)
+
 
     with open(os.path.join(paths.final_txt_model_path, 'images.txt')) as f:
         raw_extrinsics = f.readlines()
@@ -394,7 +402,7 @@ if __name__ == "__main__":
     import_features(images, paths, args)
     match_features(images, paths, args)
     
-    geometric_verification(paths, args)
-    reconstruct(paths, args)
-    register_queries(paths, args)
-    recover_query_poses(paths, args)
+    #geometric_verification(paths, args)
+    #reconstruct(paths, args)
+    #register_queries(paths, args)
+    #recover_query_poses(paths, args)

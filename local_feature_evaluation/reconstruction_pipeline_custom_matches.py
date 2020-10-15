@@ -160,10 +160,15 @@ def import_features(images, paths, args):
         #lines = [l.split("\n")[0] for l in open(features_path).readlines()]
         #header = lines[0]
         #features = np.array([l.split(" ") for l in lines[1:]])
-        features = np.loadtxt(features_path, skiprows=1)
-        #print(header)
-        #print(features.shape)
-        keypoints = features[:,:4].astype(np.float32)
+        if not os.path.exists(features_path):
+            #print(features_path)
+            keypoints = np.arange(8).reshape((4,2))
+            false_count += 1
+        else:
+            features = np.loadtxt(features_path, skiprows=1)
+            #print(header)
+            #print(features.shape)
+            keypoints = features[:,:4].astype(np.float32)
         
         ## load features written as a matrix
         #if not os.path.exists(features_path):
@@ -217,36 +222,8 @@ def match_features(images, paths, args):
     for raw_pair in tqdm(raw_pairs, total=len(raw_pairs)):
         image_name1, image_name2 = raw_pair.strip('\n').split(' ')
         
-        #features_path1 = os.path.join(paths.image_path, '%s.%s' % (image_name1, args.method_name))
-        #features_path2 = os.path.join(paths.image_path, '%s.%s' % (image_name2, args.method_name))
-        #descriptors1 = torch.from_numpy(np.load(features_path1)['descriptors']).to(device)
-        #descriptors2 = torch.from_numpy(np.load(features_path2)['descriptors']).to(device)
-        
-        features_path1 = "%s/%s.txt"%(paths.feature_path, image_name1)
-        features_path2 = "%s/%s.txt"%(paths.feature_path, image_name2)
-
-        # load features written in colmap format
-        lines = [l.split("\n")[0] for l in open(features_path1).readlines()]
-        descriptors1 = np.array([l.split(" ") for l in lines[1:]])[:,4:]
-        descriptors1 = descriptors1.astype(np.float32)
-        lines = [l.split("\n")[0] for l in open(features_path2).readlines()]
-        descriptors2 = np.array([l.split(" ") for l in lines[1:]])[:,4:]
-        descriptors2 = descriptors2.astype(np.float32)
-
-        #print(descriptors2[:3,:50])
-
-        ## load features written as a matrix
-        #descriptors1 = np.loadtxt(features_path1)[:,4:]
-        #descriptors2 = np.loadtxt(features_path2)[:,4:]
-        
-        descriptors1 = torch.from_numpy(descriptors1).to(device)
-        descriptors2 = torch.from_numpy(descriptors2).to(device)
-        matches = mutual_nn_matcher(descriptors1, descriptors2).astype(np.uint32)
-        print(matches)
-        print("%d/%d\t/%d/%d"%(
-            np.max(matches[:,0]),descriptors1.shape[0], 
-            np.max(matches[:,1]), descriptors2.shape[0]))
-        exit(0)
+        match_fn = "%s/%s_%s.txt"%(paths.match_path, image_name1.replace("/","-",1), image_name2.replace("/","-",1)) 
+        matches = np.loadtxt(match_fn, dtype=int)
 
         image_id1, image_id2 = images[image_name1], images[image_name2]
         image_pair_id = image_ids_to_pair_id(image_id1, image_id2)
@@ -355,20 +332,22 @@ if __name__ == "__main__":
     parser.add_argument('--method_name', required=True, help='Name of the method')
     parser.add_argument('--res_path', type=str, required=True)
     parser.add_argument('--feat_path', type=str, required=True)
+    parser.add_argument('--match_path', type=str, required=True)
     args = parser.parse_args()
 
-    # Torch settings for the matcher.
-    use_cuda = torch.cuda.is_available()
-    device = torch.device("cuda:0" if use_cuda else "cpu")
+    ## Torch settings for the matcher.
+    #use_cuda = torch.cuda.is_available()
+    #device = torch.device("cuda:0" if use_cuda else "cpu")
 
     # Create the extra paths.
     paths = types.SimpleNamespace()
     paths.dummy_database_path = os.path.join(args.dataset_path, 'database.db')
     paths.reference_model_path = os.path.join(args.dataset_path, '3D-models')
-    paths.match_list_path = os.path.join(args.dataset_path, 'image_pairs_to_match.txt')
-    #paths.match_list_path = os.path.join(args.dataset_path, 'image_pairs_to_match_light.txt')
+    #paths.match_list_path = os.path.join(args.dataset_path, 'image_pairs_to_match.txt')
+    paths.match_list_path = os.path.join(args.dataset_path, 'image_pairs_to_match_light.txt')
     paths.image_path = os.path.join(args.dataset_path, 'images', 'images_upright')
     paths.feature_path = args.feat_path
+    paths.match_path = args.match_path
 
     paths.database_path = "%s/database.db"%args.res_path
     paths.empty_model_path = "%s/sparse-%s-empty"%(args.res_path, args.method_name)

@@ -133,3 +133,19 @@ Write the feature and the matches to the database through the python sqlite3 int
 ./scripts/colmap_loc_import_py.sh
 ```
 
+# Aachen
+
+- write features to file
+```
+des_num des_dim
+x y scale ori des
+```
+
+- write matches to file
+```
+fn0 fn1
+id0_0 id1_0
+id0_1 id1_1
+...
+id0_N id1_N
+```
