@@ -48,19 +48,19 @@ res_path=res/"$data"/"$method"/"$loc_trial"/loc/
 method=oanet
 feat_path="$WS_DIR"/tools/bm/res/features/0/
 match_path="$WS_DIR"/tf/OANet/res/0/
-loc_trial=5
+loc_trial=2
 res_path=res/"$data"/"$method"/"$loc_trial"/loc/
 
 #cp -r res/"$data"/"$method"/"$trial"/loc_ref res/"$data"/"$method"/"$trial"/loc/
 
-rm -rf "$res_path"
-mkdir -p "$res_path"
+#rm -rf "$res_path"
+#mkdir -p "$res_path"
 
 #python3 reconstruction_pipeline.py \
 python3 reconstruction_pipeline_custom_matches.py \
   --dataset_path "$data_dir" \
   --colmap_path "$colmap_dir" \
-  --method_name box_sp \
+  --method_name "$method" \
   --res_path "$res_path" \
   --feat_path "$feat_path" \
   --match_path "$match_path"

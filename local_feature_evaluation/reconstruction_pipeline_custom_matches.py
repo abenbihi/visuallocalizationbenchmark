@@ -10,13 +10,13 @@ import subprocess
 
 import sqlite3
 
-import torch
+#import torch
 
 import types
 
 from tqdm import tqdm
 
-from matchers import mutual_nn_matcher
+#from matchers import mutual_nn_matcher
 
 from camera import Camera
 
@@ -24,6 +24,8 @@ from utils import quaternion_to_rotation_matrix, camera_center_to_translation
 
 import sys
 IS_PYTHON3 = sys.version_info[0] >= 3
+
+DEBUG = (1==1)
 
 def array_to_blob(array):
     if IS_PYTHON3:
@@ -43,7 +45,7 @@ def recover_database_images_and_ids(paths, args):
     for row in cursor:
         images[row[0]] = row[1]
         cameras[row[0]] = row[2]
-
+        #print(row[0])
     # Close the connection to the database.
     cursor.close()
     connection.close()
@@ -148,53 +150,40 @@ def import_features(images, paths, args):
 
     # Import the features.
     print('Importing features...')
+    if DEBUG:
+        subset_fn = np.unique(np.loadtxt(paths.match_list_path, dtype=str))
     
-    false_count = 0
-    count = 0
+    count, false_count = 0,0
     for image_name, image_id in tqdm(images.items(), total=len(images.items())):
-        #features_path = os.path.join(paths.image_path, '%s.%s' % (image_name, args.method_name))
+        if DEBUG:
+            if image_name not in subset_fn:
+                continue
+
         features_path = "%s/%s.txt"%(paths.feature_path, image_name)
         #print(features_path)
 
-        # load features written in colmap format
-        #lines = [l.split("\n")[0] for l in open(features_path).readlines()]
-        #header = lines[0]
-        #features = np.array([l.split(" ") for l in lines[1:]])
         if not os.path.exists(features_path):
-            #print(features_path)
-            keypoints = np.arange(8).reshape((4,2))
             false_count += 1
+            keypoints = np.arange(8).reshape((4,2))
+            continue
         else:
             features = np.loadtxt(features_path, skiprows=1)
-            #print(header)
-            #print(features.shape)
             keypoints = features[:,:4].astype(np.float32)
-        
-        ## load features written as a matrix
-        #if not os.path.exists(features_path):
-        #    #print(features_path)
-        #    keypoints = np.arange(8).reshape((4,2))
-        #    false_count += 1
-        #else:
-        #    #keypoints = np.load(features_path)['keypoints']
-        #    keypoints = np.loadtxt(features_path)
-        #    keypoints = keypoints[:,:4]
-
         count += 1
-
+ 
         n_keypoints = keypoints.shape[0]
         
         # Keep only x, y coordinates.
         keypoints = keypoints[:, : 2]
         # Add placeholder scale, orientation.
         keypoints = np.concatenate([keypoints, np.ones((n_keypoints, 1)), np.zeros((n_keypoints, 1))], axis=1).astype(np.float32)
-        
+       
         keypoints_str = keypoints.tostring()
         cursor.execute("INSERT INTO keypoints(image_id, rows, cols, data) VALUES(?, ?, ?, ?);",
                        (image_id, keypoints.shape[0], keypoints.shape[1], keypoints_str))
         connection.commit()
     
-    print("%d/%d"%(count, false_count))
+    print("%d/%d"%(false_count, count))
     # Close the connection to the database.
     cursor.close()
     connection.close()
@@ -219,11 +208,32 @@ def match_features(images, paths, args):
         raw_pairs = f.readlines()
     
     image_pair_ids = set()
+    count, false_count = 0,0
     for raw_pair in tqdm(raw_pairs, total=len(raw_pairs)):
         image_name1, image_name2 = raw_pair.strip('\n').split(' ')
+
+        fn1 = image_name1.split(".")[0]
+        fn2 = image_name2.split(".")[0]
+        match_fn = "%s/%s_%s.txt"%(paths.match_path, fn1.replace("/","-"), fn2.replace("/","-"))
+        #break
+
+        if not os.path.exists(match_fn):
+            print(match_fn)
+            matches = np.array([[0,0],[1,1]]).astype(np.uint32)
+            false_count += 1
+            #continue
+        else:
+            matches = np.loadtxt(match_fn, dtype=int).astype(np.uint32)
+            matches = matches.reshape((-1,2))
+        count += 1
+
         
-        match_fn = "%s/%s_%s.txt"%(paths.match_path, image_name1.replace("/","-",1), image_name2.replace("/","-",1)) 
-        matches = np.loadtxt(match_fn, dtype=int)
+        #features_path1 = os.path.join(paths.image_path, '%s.%s' % (image_name1, args.method_name))
+        #features_path2 = os.path.join(paths.image_path, '%s.%s' % (image_name2, args.method_name))
+
+        #descriptors1 = torch.from_numpy(np.load(features_path1)['descriptors']).to(device)
+        #descriptors2 = torch.from_numpy(np.load(features_path2)['descriptors']).to(device)
+        #matches = mutual_nn_matcher(descriptors1, descriptors2).astype(np.uint32)
 
         image_id1, image_id2 = images[image_name1], images[image_name2]
         image_pair_id = image_ids_to_pair_id(image_id1, image_id2)
@@ -239,6 +249,7 @@ def match_features(images, paths, args):
                        (image_pair_id, matches.shape[0], matches.shape[1], matches_str))
         connection.commit()
     
+    print("%d/%d"%(false_count,count))
     # Close the connection to the database.
     cursor.close()
     connection.close()
@@ -246,7 +257,6 @@ def match_features(images, paths, args):
 
 def geometric_verification(paths, args):
     print('Running geometric verification...')
-    print(paths.match_list_path)
 
     subprocess.call([os.path.join(args.colmap_path, 'colmap'), 'matches_importer',
                      '--database_path', paths.database_path,
@@ -333,6 +343,7 @@ if __name__ == "__main__":
     parser.add_argument('--res_path', type=str, required=True)
     parser.add_argument('--feat_path', type=str, required=True)
     parser.add_argument('--match_path', type=str, required=True)
+ 
     args = parser.parse_args()
 
     ## Torch settings for the matcher.
@@ -342,13 +353,21 @@ if __name__ == "__main__":
     # Create the extra paths.
     paths = types.SimpleNamespace()
     paths.dummy_database_path = os.path.join(args.dataset_path, 'database.db')
-    paths.reference_model_path = os.path.join(args.dataset_path, '3D-models')
-    #paths.match_list_path = os.path.join(args.dataset_path, 'image_pairs_to_match.txt')
-    paths.match_list_path = os.path.join(args.dataset_path, 'image_pairs_to_match_light.txt')
+    #paths.database_path = os.path.join(args.dataset_path, args.method_name + '.db')
     paths.image_path = os.path.join(args.dataset_path, 'images', 'images_upright')
+    paths.features_path = os.path.join(args.dataset_path, args.method_name)
+    paths.reference_model_path = os.path.join(args.dataset_path, '3D-models')
+    paths.match_list_path = os.path.join(args.dataset_path, 'image_pairs_to_match.txt')
+    #paths.match_list_path = os.path.join(args.dataset_path, 'image_pairs_to_match_light1.txt')
+    
+    #paths.empty_model_path = os.path.join(args.dataset_path, 'sparse-%s-empty' % args.method_name)
+    #paths.database_model_path = os.path.join(args.dataset_path, 'sparse-%s-database' % args.method_name)
+    #paths.final_model_path = os.path.join(args.dataset_path, 'sparse-%s-final' % args.method_name)
+    #paths.final_txt_model_path = os.path.join(args.dataset_path, 'sparse-%s-final-txt' % args.method_name)
+    #paths.prediction_path = os.path.join(args.dataset_path, 'Aachen_eval_[%s].txt' % args.method_name)
+    
     paths.feature_path = args.feat_path
     paths.match_path = args.match_path
-
     paths.database_path = "%s/database.db"%args.res_path
     paths.empty_model_path = "%s/sparse-%s-empty"%(args.res_path, args.method_name)
     paths.database_model_path = "%s/sparse-%s-database"%(args.res_path, args.method_name)
@@ -356,21 +375,19 @@ if __name__ == "__main__":
     paths.final_txt_model_path = "%s/sparse-%s-final-txt"%(args.res_path, args.method_name)
     paths.prediction_path = "%s/Aachen_eval_%s.txt"%(args.res_path, args.method_name)
 
+
+    ## Create a copy of the dummy database.
+    #if os.path.exists(paths.database_path):
+    #    raise FileExistsError('The database file already exists for method %s.' % args.method_name)
+    #shutil.copyfile(paths.dummy_database_path, paths.database_path)
     
-    # Create a copy of the dummy database.
-    if os.path.exists(paths.database_path):
-        raise FileExistsError('The database file already exists for method %s.' % args.method_name)
-    shutil.copyfile(paths.dummy_database_path, paths.database_path)
-    
-    # Reconstruction pipeline.
+    ## Reconstruction pipeline.
     camera_parameters = preprocess_reference_model(paths, args)
     images, cameras = recover_database_images_and_ids(paths, args)
-    generate_empty_reconstruction(images, cameras, camera_parameters, paths, args)
-    
-    import_features(images, paths, args)
+    #generate_empty_reconstruction(images, cameras, camera_parameters, paths, args)
+    #import_features(images, paths, args)
     match_features(images, paths, args)
-    #
-    #geometric_verification(paths, args)
-    #reconstruct(paths, args)
-    #register_queries(paths, args)
-    #recover_query_poses(paths, args)
+    geometric_verification(paths, args)
+    reconstruct(paths, args)
+    register_queries(paths, args)
+    recover_query_poses(paths, args)
