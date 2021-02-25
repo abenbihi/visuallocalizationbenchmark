@@ -46,15 +46,33 @@ res_path=res/"$data"/"$method"/"$loc_trial"/loc/
 
 # oanet
 method=oanet
-feat_path="$WS_DIR"/tools/bm/res/features/0/
+feat_path="$WS_DIR"/tools/bm/res/features/0/ # sift (opencv python)
 match_path="$WS_DIR"/tf/OANet/res/0/
+loc_trial=2
+res_path=res/"$data"/"$method"/"$loc_trial"/loc/
+
+# ngransac
+method=ngransac
+feat_path="$WS_DIR"/tools/bm/res/features/2/ # upright root sift (opencv c++)
+match_path="$WS_DIR"/tf/ngransac/res/5/
+loc_trial=0
+res_path=res/"$data"/"$method"/"$loc_trial"/loc/
+
+# bm
+method=bm
+feat_path="$WS_DIR"/tools/bm/res/features/upright-root-sift_cpp_8000/aachen/
+bm_trial=0 # 25 :( # loc_trial 0
+bm_trial=7 # inchAllah
+bm_iter=0
+
+match_path="$WS_DIR"/tools/imb/dream_cpp/res/bm/"$bm_trial"/"$bm_iter"/aachen/kp_match/
 loc_trial=2
 res_path=res/"$data"/"$method"/"$loc_trial"/loc/
 
 #cp -r res/"$data"/"$method"/"$trial"/loc_ref res/"$data"/"$method"/"$trial"/loc/
 
-#rm -rf "$res_path"
-#mkdir -p "$res_path"
+rm -rf "$res_path"
+mkdir -p "$res_path"
 
 #python3 reconstruction_pipeline.py \
 python3 reconstruction_pipeline_custom_matches.py \

@@ -160,11 +160,11 @@ def import_features(images, paths, args):
                 continue
 
         features_path = "%s/%s.txt"%(paths.feature_path, image_name)
-        #print(features_path)
 
         if not os.path.exists(features_path):
+            #print(features_path)
             false_count += 1
-            keypoints = np.arange(8).reshape((4,2))
+            keypoints = np.arange(8).reshape((4,2)).astype(np.float32)
             continue
         else:
             features = np.loadtxt(features_path, skiprows=1)
@@ -218,12 +218,20 @@ def match_features(images, paths, args):
         #break
 
         if not os.path.exists(match_fn):
-            print(match_fn)
+            #print(match_fn)
             matches = np.array([[0,0],[1,1]]).astype(np.uint32)
             false_count += 1
             #continue
         else:
-            matches = np.loadtxt(match_fn, dtype=int).astype(np.uint32)
+            #print("match_fn:%s"%match_fn)
+            if args.method_name == "bm":
+                matches = np.loadtxt(match_fn)
+                if matches.shape[0] == 0: # bm could not match keypoints
+                    matches = np.array([[0,0],[1,1]]).astype(np.uint32) # random matches
+                else:
+                    matches = matches[:,:2].astype(np.uint32)
+            else:
+                matches = np.loadtxt(match_fn, dtype=int).astype(np.uint32)
             matches = matches.reshape((-1,2))
         count += 1
 
@@ -376,18 +384,18 @@ if __name__ == "__main__":
     paths.prediction_path = "%s/Aachen_eval_%s.txt"%(args.res_path, args.method_name)
 
 
-    ## Create a copy of the dummy database.
-    #if os.path.exists(paths.database_path):
-    #    raise FileExistsError('The database file already exists for method %s.' % args.method_name)
-    #shutil.copyfile(paths.dummy_database_path, paths.database_path)
+    # Create a copy of the dummy database.
+    if os.path.exists(paths.database_path):
+        raise FileExistsError('The database file already exists for method %s.' % args.method_name)
+    shutil.copyfile(paths.dummy_database_path, paths.database_path)
     
     ## Reconstruction pipeline.
     camera_parameters = preprocess_reference_model(paths, args)
     images, cameras = recover_database_images_and_ids(paths, args)
-    #generate_empty_reconstruction(images, cameras, camera_parameters, paths, args)
-    #import_features(images, paths, args)
+    generate_empty_reconstruction(images, cameras, camera_parameters, paths, args)
+    import_features(images, paths, args)
     match_features(images, paths, args)
-    geometric_verification(paths, args)
-    reconstruct(paths, args)
-    register_queries(paths, args)
-    recover_query_poses(paths, args)
+    #geometric_verification(paths, args)
+    #reconstruct(paths, args)
+    #register_queries(paths, args)
+    #recover_query_poses(paths, args)

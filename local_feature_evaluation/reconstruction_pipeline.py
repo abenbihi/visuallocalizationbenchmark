@@ -365,8 +365,8 @@ if __name__ == "__main__":
     paths = types.SimpleNamespace()
     paths.dummy_database_path = os.path.join(args.dataset_path, 'database.db')
     paths.reference_model_path = os.path.join(args.dataset_path, '3D-models')
-    paths.match_list_path = os.path.join(args.dataset_path, 'image_pairs_to_match.txt')
-    #paths.match_list_path = os.path.join(args.dataset_path, 'image_pairs_to_match_light.txt')
+    #paths.match_list_path = os.path.join(args.dataset_path, 'image_pairs_to_match.txt')
+    paths.match_list_path = os.path.join(args.dataset_path, 'image_pairs_to_match_light.txt')
     paths.image_path = os.path.join(args.dataset_path, 'images', 'images_upright')
     paths.feature_path = args.feat_path
 
