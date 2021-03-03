@@ -179,7 +179,7 @@ def import_features(images, paths, args):
                        (image_id, keypoints.shape[0], keypoints.shape[1], keypoints_str))
         connection.commit()
     
-    print("%d/%d"%(false_count, count))
+    print("# negatives / total: %d/%d"%(false_count, count))
     # Close the connection to the database.
     cursor.close()
     connection.close()
@@ -261,11 +261,47 @@ def match_features(images, paths, args):
                        (image_pair_id, matches.shape[0], matches.shape[1], matches_str))
         connection.commit()
     
-    print("%d/%d"%(false_count,count))
+    print("# negatives / total: %d/%d"%(false_count,count))
     # Close the connection to the database.
     cursor.close()
     connection.close()
 
+def match_features_debug(images, paths, args):
+    # Connect to the database.
+    connection = sqlite3.connect(paths.database_path)
+    cursor = connection.cursor()
+
+    # Match the features and insert the matches in the database.
+    print('Matching...')
+    
+    # list of image pairs to match
+    with open(paths.match_list_path, 'r') as f:
+        raw_pairs = f.readlines()
+    
+    # find the matches already processed
+    pairs_left = []
+    for raw_pair in tqdm(raw_pairs, total=len(raw_pairs)):
+        image_name1, image_name2 = raw_pair.strip('\n').split(' ')
+        image_id1, image_id2 = images[image_name1], images[image_name2]
+        image_pair_id = image_ids_to_pair_id(image_id1, image_id2)
+
+        print(str(image_pair_id))
+        cursor.execute("SELECT rows, cols, data FROM matches WHERE pair_id = ?;",
+                (str(image_pair_id),))
+        data = cursor.fetchall()
+        #print(data)
+        if (len(data) == 0):
+            pairs_left.append(raw_pair)
+        #print(cursor)
+        #for l in cursor:
+        #    print(l)
+        
+        #break
+    
+    print("# pairs_left: %d/%d"%(len(pairs_left), len(raw_pairs)))
+    
+    cursor.close()
+    connection.close()
 
 def geometric_verification(paths, args):
     print('Running geometric verification...')
@@ -273,6 +309,9 @@ def geometric_verification(paths, args):
     subprocess.call([os.path.join(args.colmap_path, 'colmap'), 'matches_importer',
                      '--database_path', paths.database_path,
                      '--match_list_path', paths.match_list_path,
+                     '--SiftMatching.num_threads', "1",
+                     '--log_to_stderr', '1',
+                     '--log_level', '5',
                      '--match_type', 'pairs'])
 
 
@@ -389,18 +428,21 @@ if __name__ == "__main__":
     paths.prediction_path = "%s/Aachen_eval_%s.txt"%(args.res_path, args.method_name)
 
 
-    # Create a copy of the dummy database.
-    if os.path.exists(paths.database_path):
-        raise FileExistsError('The database file already exists for method %s.' % args.method_name)
-    shutil.copyfile(paths.dummy_database_path, paths.database_path)
+    ## Create a copy of the dummy database.
+    #if os.path.exists(paths.database_path):
+    #    raise FileExistsError('The database file already exists for method %s.' % args.method_name)
+    #shutil.copyfile(paths.dummy_database_path, paths.database_path)
     
     ## Reconstruction pipeline.
     camera_parameters = preprocess_reference_model(paths, args)
     images, cameras = recover_database_images_and_ids(paths, args)
-    generate_empty_reconstruction(images, cameras, camera_parameters, paths, args)
-    import_features(images, paths, args)
-    match_features(images, paths, args)
+    
+    #generate_empty_reconstruction(images, cameras, camera_parameters, paths, args)
+    #import_features(images, paths, args)
+
+    #match_features(images, paths, args)
+    #match_features_debug(images, paths, args)
     geometric_verification(paths, args)
-    reconstruct(paths, args)
-    register_queries(paths, args)
-    recover_query_poses(paths, args)
+    #reconstruct(paths, args)
+    #register_queries(paths, args)
+    #recover_query_poses(paths, args)

@@ -1,14 +1,14 @@
 #!/bin/sh
 
 data=aachen
-method=ngransac
-trials=0
+method=anubis
+trials=7
 
 remote_dir=benbiass@147.32.84.13:/datagrid/personal/benbiass/ws/tools/vlb/local_feature_evaluation/
 
 for trial in "$trials"
 do
-  res_dir=res/aachen/"$method"/"$trial"/loc
+  res_dir=res/aachen/"$method"/"$trial"/
   #ssh benbiass@147.32.84.13 "cd "$remote_dir"; mkdir -p "$res_dir""
   #echo "$?"
   #if [ "$?" -ne 0 ]; then
@@ -16,8 +16,8 @@ do
   #  exit 1
   #fi
   
-  rsync -avh "$res_dir"/Aachen_eval_ngransac.txt "$remote_dir""$res_dir"
-  rsync -avh res/"$data"/README.md  "$remote_dir"/res/"$data"
+  rsync -avh "$res_dir"/Aachen_eval_"$method".txt "$remote_dir""$res_dir"
+  #rsync -avh res/"$data"/README.md  "$remote_dir"/res/"$data"
   echo "rsync -avh "$res_dir"/Aachen_eval_ngransac.txt "$remote_dir""$res_dir""
   if [ "$?" -ne 0 ]; then
     echo "Error: failed to send file."
