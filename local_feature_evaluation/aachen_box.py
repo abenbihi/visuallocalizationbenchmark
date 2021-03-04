@@ -309,7 +309,7 @@ def geometric_verification(paths, args):
     subprocess.call([os.path.join(args.colmap_path, 'colmap'), 'matches_importer',
                      '--database_path', paths.database_path,
                      '--match_list_path', paths.match_list_path,
-                     '--SiftMatching.num_threads', "1",
+                     #'--SiftMatching.num_threads', "1",
                      '--log_to_stderr', '1',
                      '--log_level', '5',
                      '--match_type', 'pairs'])
@@ -442,7 +442,7 @@ if __name__ == "__main__":
 
     #match_features(images, paths, args)
     #match_features_debug(images, paths, args)
-    geometric_verification(paths, args)
-    #reconstruct(paths, args)
-    #register_queries(paths, args)
-    #recover_query_poses(paths, args)
+    #geometric_verification(paths, args)
+    reconstruct(paths, args)
+    register_queries(paths, args)
+    recover_query_poses(paths, args)

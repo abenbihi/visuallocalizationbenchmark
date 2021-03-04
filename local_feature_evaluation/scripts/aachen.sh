@@ -26,19 +26,19 @@ res_path=res/"$data"/"$method"/"$trial"
 #mkdir -p "$res_path"
 
 
-"$colmap_dir"/colmap matches_importer \
-  --database_path "$res_path"/database.db \
-  --match_list_path "$data_dir"/image_pairs_to_match.txt \
-  --SiftMatching.num_threads 1 \
-  --log_to_stderr 1 \
-  --log_level 5 \
-  --match_type pairs 
+#"$colmap_dir"/colmap matches_importer \
+#  --database_path "$res_path"/database.db \
+#  --match_list_path "$data_dir"/image_pairs_to_match.txt \
+#  --SiftMatching.num_threads 1 \
+#  --log_to_stderr 1 \
+#  --log_level 5 \
+#  --match_type pairs 
 
-#python3 aachen_box.py \
-#  --dataset_path "$data_dir" \
-#  --colmap_path "$colmap_dir" \
-#  --method_name "$method" \
-#  --res_path "$res_path" \
-#  --feat_path "$feat_path" \
-#  --match_path "$match_path" \
-#  --format "$method"
+python3 aachen_box.py \
+  --dataset_path "$data_dir" \
+  --colmap_path "$colmap_dir" \
+  --method_name "$method" \
+  --res_path "$res_path" \
+  --feat_path "$feat_path" \
+  --match_path "$match_path" \
+  --format "$method"
