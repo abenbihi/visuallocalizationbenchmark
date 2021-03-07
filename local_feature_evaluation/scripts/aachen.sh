@@ -65,8 +65,8 @@ match_path="$anubis_dir"/
 
 res_path=res/"$data"/"$method"/"$loc_trial"
 
-rm -rf "$res_path"
-mkdir -p "$res_path"
+#rm -rf "$res_path"
+#mkdir -p "$res_path"
 
 python3 aachen_box_lines.py \
   --dataset_path "$data_dir" \

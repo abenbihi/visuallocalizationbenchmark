@@ -156,13 +156,19 @@ def import_features(images, paths, args):
             if image_name not in subset_fn:
                 continue
         
-        keypoints = None
+        intersection_keypoints = None
+        box_keypoints = None
 
         # import line intersections
         features_path = "%s/intersection_features/%s.txt"%(paths.feature_path, image_name)
         if os.path.exists(features_path):
-            features = np.loadtxt(features_path, skiprows=1)
-            keypoints = features[:,:4].astype(np.float32)
+            data = [l.split("\n")[0].split(" ") for l in
+                    open(features_path).readlines()]
+            if (len(data)) > 1: # i.e. more than the header
+                intersection_keypoints = np.vstack(data[1:]).astype(np.float32)
+                #print(intersection_keypoints.shape)
+            #features = np.loadtxt(features_path, skiprows=1)
+            #intersection_keypoints = features[:,:4].astype(np.float32)
         else:
             print("Bad path motherfucker: %s"%features_path)
             exit(1)
@@ -171,19 +177,34 @@ def import_features(images, paths, args):
         # import box corners
         features_path = "%s/box_corner_features/%s.txt"%(paths.feature_path, image_name)
         if os.path.exists(features_path):
-            features = np.loadtxt(features_path, skiprows=1)
-            box_keypoints = features[:,:4].astype(np.float32)
-
-            if keypoints is None:
-                id_shifts[image_name] = 0
-                keypoints = box_keypoints
-            else:
-                id_shifts[image_name] = keypoints.shape[0]
-                keypoints = np.vstack((keypoints, box_keypoints))
+            data = [l.split("\n")[0].split(" ") for l in
+                    open(features_path).readlines()]
+            if (len(data)) > 1: # i.e. more than the header
+                box_keypoints = np.array(data[1:]).astype(np.float32)
+                #print(box_keypoints.shape)
+            #features = np.loadtxt(features_path, skiprows=1)
+            #box_keypoints = features[:,:4].astype(np.float32)
         else:
             print("Bad path motherfucker: %s"%features_path)
             exit(1)
+        
+        # fuse them
+        keypoints = None
+        if intersection_keypoints is None:
+            id_shifts[image_name] = 0
+            if box_keypoints is None:
+                false_count += 1
+                keypoints = np.arange(8).reshape((4,2)).astype(np.float32)
+            else: 
+                keypoints = box_keypoints
+        else:
+            id_shifts[image_name] = intersection_keypoints.shape[0]
+            if box_keypoints is None:
+                keypoints = intersection_keypoints
+            else:
+                keypoints = np.vstack((intersection_keypoints, box_keypoints))
 
+        assert(keypoints is not None)
         #print(keypoints.shape)
         #exit(1)
 
@@ -231,14 +252,15 @@ def match_features(images, paths, args, id_shifts):
     count, false_count = 0,0
     for raw_pair in tqdm(raw_pairs, total=len(raw_pairs)):
         image_name1, image_name2 = raw_pair.strip('\n').split(' ')
-        if ((image_name1 != "query/night/nexus5x/IMG_20161227_192304.jpg") or
-                image_name2 != "db/1211.jpg"):
-            continue
+        #if ((image_name1 != "query/night/nexus5x/IMG_20161227_192304.jpg") or
+        #        image_name2 != "db/1211.jpg"):
+        #    continue
         fn1 = image_name1.split(".")[0]
         fn2 = image_name2.split(".")[0]
 
-        matches = None
-
+        intersection_matches = None
+        box_matches = None
+        
         # read the line intersection matches
         matches_path = "%s/point_matches/%s_%s.txt"%(paths.match_path,
                 fn1.replace("/","-"), fn2.replace("/","-"))
@@ -246,31 +268,44 @@ def match_features(images, paths, args, id_shifts):
             data = [l.split("\n")[0].split(" ") for l in
                     open(matches_path).readlines()]
             if (len(data)) > 1: # i.e. more than the header
-                matches = np.array(data[1:]).astype(np.uint32)
+                intersection_matches = np.array(data[1:]).astype(np.uint32)
         else:
             print("Bad path motherfucker: %s"%matches_path)
             exit(1)
-        print("line_matches: ", matches)
+        #print("intersection_matches: ", intersection_matches)
 
         # read the box corners intersection matches
         matches_path = "%s/box_point_matches/%s_%s.txt"%(paths.match_path,
                 fn1.replace("/","-"), fn2.replace("/","-"))
-        box_matches = None
         if os.path.exists(matches_path):
             data = [l.split("\n")[0].split(" ") for l in
                     open(matches_path).readlines()]
             if (len(data)) > 1: # i.e. more than the header
                 box_matches = np.array(data[1:]).astype(np.uint32)
+        #print("box_matches: ", box_matches)
 
-            print("box_matches: ", box_matches)
-            if matches is None:
+        # fuse them
+        matches = None
+        shift1 = id_shifts[image_name1] 
+        shift2 = id_shifts[image_name2]
+
+        if intersection_matches is None:
+            if box_matches is None:
+                matches = np.array([[0,0],[1,1]]).astype(np.uint32) # random matches
+            else:
+                box_matches[:,0] = box_matches[:,0] + shift1
+                box_matches[:,1] = box_matches[:,1] + shift2
                 matches = box_matches
-            else: 
-                # shift the box matches by the number of features in each image
-                # respectively.
-                shift1 = id_shifts[image_name1] 
-                shift2 = id_shifts[image_name2]
+        else: 
+            if box_matches is None:
+                matches = intersection_matches
+            else:
+                box_matches[:,0] = box_matches[:,0] + shift1
+                box_matches[:,1] = box_matches[:,1] + shift2
+                matches = np.vstack((intersection_matches, box_matches))
 
+            # shift the box matches by the number of features in each image
+            # respectively.
                 #features_path1 = "%s/intersection_features/%s.txt"%(paths.feature_path, image_name1)
                 #if os.path.exists(features_path1):
                 #    features1 = np.loadtxt(features_path1, skiprows=1)
@@ -279,22 +314,16 @@ def match_features(images, paths, args, id_shifts):
                 #if os.path.exists(features_path2):
                 #    features2 = np.loadtxt(features_path2, skiprows=1)
                 #    shift2 = features2.shape[0]
+            
+        #print("matches: ", matches)
 
-                box_matches[:,0] = box_matches[:,0] + shift1
-                box_matches[:,1] = box_matches[:,1] + shift2
-                matches = np.vstack((matches, box_matches))
-        else:
-            print("Bad path motherfucker: %s"%matches_path)
-            exit(1)
-        print("matches: ", box_matches)
-
-        if matches is None:
-            print("FUCKING None MACHES")
-            matches = np.array([[0,0],[1,1]]).astype(np.uint32) # random matches
-            exit(1)
-        else:
-            print("WTF")
-            exit(1)
+        #if matches is None:
+        #    print("FUCKING None MACHES")
+        #    matches = np.array([[0,0],[1,1]]).astype(np.uint32) # random matches
+        #    exit(1)
+        #else:
+        #    print("WTF")
+        #    exit(1)
 
         count += 1
 
@@ -467,19 +496,19 @@ if __name__ == "__main__":
     paths.prediction_path = "%s/Aachen_eval_%s.txt"%(args.res_path, args.method_name)
 
 
-    # Create a copy of the dummy database.
-    if os.path.exists(paths.database_path):
-        raise FileExistsError('The database file already exists for method %s.' % args.method_name)
-    shutil.copyfile(paths.dummy_database_path, paths.database_path)
+    ## Create a copy of the dummy database.
+    #if os.path.exists(paths.database_path):
+    #    raise FileExistsError('The database file already exists for method %s.' % args.method_name)
+    #shutil.copyfile(paths.dummy_database_path, paths.database_path)
     
     ## Reconstruction pipeline.
     camera_parameters = preprocess_reference_model(paths, args)
     images, cameras = recover_database_images_and_ids(paths, args)
     
-    generate_empty_reconstruction(images, cameras, camera_parameters, paths, args)
-    id_shifts = import_features(images, paths, args)
-    match_features(images, paths, args, id_shifts)
+    #generate_empty_reconstruction(images, cameras, camera_parameters, paths, args)
+    #id_shifts = import_features(images, paths, args)
+    #match_features(images, paths, args, id_shifts)
     #geometric_verification(paths, args)
     #reconstruct(paths, args)
-    #register_queries(paths, args)
-    #recover_query_poses(paths, args)
+    register_queries(paths, args)
+    recover_query_poses(paths, args)
