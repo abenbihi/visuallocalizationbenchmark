@@ -149,22 +149,44 @@ def import_features(images, paths, args):
     if DEBUG:
         subset_fn = np.unique(np.loadtxt(paths.match_list_path, dtype=str))
     
+    id_shifts = {}
     count, false_count = 0,0
     for image_name, image_id in tqdm(images.items(), total=len(images.items())):
         if DEBUG:
             if image_name not in subset_fn:
                 continue
+        
+        keypoints = None
 
-        features_path = "%s/%s.txt"%(paths.feature_path, image_name)
-
-        if not os.path.exists(features_path):
-            #print(features_path)
-            false_count += 1
-            keypoints = np.arange(8).reshape((4,2)).astype(np.float32)
-            #continue
-        else:
+        # import line intersections
+        features_path = "%s/intersection_features/%s.txt"%(paths.feature_path, image_name)
+        if os.path.exists(features_path):
             features = np.loadtxt(features_path, skiprows=1)
             keypoints = features[:,:4].astype(np.float32)
+        else:
+            print("Bad path motherfucker: %s"%features_path)
+            exit(1)
+        #print(keypoints.shape)
+        
+        # import box corners
+        features_path = "%s/box_corner_features/%s.txt"%(paths.feature_path, image_name)
+        if os.path.exists(features_path):
+            features = np.loadtxt(features_path, skiprows=1)
+            box_keypoints = features[:,:4].astype(np.float32)
+
+            if keypoints is None:
+                id_shifts[image_name] = 0
+                keypoints = box_keypoints
+            else:
+                id_shifts[image_name] = keypoints.shape[0]
+                keypoints = np.vstack((keypoints, box_keypoints))
+        else:
+            print("Bad path motherfucker: %s"%features_path)
+            exit(1)
+
+        #print(keypoints.shape)
+        #exit(1)
+
         count += 1
  
         n_keypoints = keypoints.shape[0]
@@ -184,6 +206,8 @@ def import_features(images, paths, args):
     cursor.close()
     connection.close()
 
+    return id_shifts
+
 
 def image_ids_to_pair_id(image_id1, image_id2):
     if image_id1 > image_id2:
@@ -192,7 +216,7 @@ def image_ids_to_pair_id(image_id1, image_id2):
         return 2147483647 * image_id1 + image_id2
 
 
-def match_features(images, paths, args):
+def match_features(images, paths, args, id_shifts):
     # Connect to the database.
     connection = sqlite3.connect(paths.database_path)
     cursor = connection.cursor()
@@ -207,85 +231,72 @@ def match_features(images, paths, args):
     count, false_count = 0,0
     for raw_pair in tqdm(raw_pairs, total=len(raw_pairs)):
         image_name1, image_name2 = raw_pair.strip('\n').split(' ')
-
+        if ((image_name1 != "query/night/nexus5x/IMG_20161227_192304.jpg") or
+                image_name2 != "db/1211.jpg"):
+            continue
         fn1 = image_name1.split(".")[0]
         fn2 = image_name2.split(".")[0]
-        match_fn = "%s/%s_%s.txt"%(paths.match_path, fn1.replace("/","-"),
-                fn2.replace("/","-"))
-        #break
 
-        if not os.path.exists(match_fn):
-            #print(match_fn)
-            matches = np.array([[0,0],[1,1]]).astype(np.uint32)
-            false_count += 1
-            #continue
+        matches = None
+
+        # read the line intersection matches
+        matches_path = "%s/point_matches/%s_%s.txt"%(paths.match_path,
+                fn1.replace("/","-"), fn2.replace("/","-"))
+        if os.path.exists(matches_path):
+            data = [l.split("\n")[0].split(" ") for l in
+                    open(matches_path).readlines()]
+            if (len(data)) > 1: # i.e. more than the header
+                matches = np.array(data[1:]).astype(np.uint32)
         else:
-            #print("match_fn:%s"%match_fn)
-            if args.method_name == "bm":
-                matches = np.loadtxt(match_fn)
-                if matches.shape[0] == 0: # bm could not match keypoints
-                    matches = np.array([[0,0],[1,1]]).astype(np.uint32) # random matches
-                else:
-                    matches = matches[:,:2].astype(np.uint32)
-            elif args.format == "anubis":
-                matches = [l.split("\n")[0].split(" ") for l in
-                        open(match_fn).readlines()]
-                if (len(matches)) == 1:
-                    matches = np.array([[0,0],[1,1]]).astype(np.uint32) # random matches
-                else:
-                    matches = np.array(matches[1:]).astype(np.uint32)
-                    #print(matches)
-            else:
-                matches = np.loadtxt(match_fn, dtype=int).astype(np.uint32)
-            matches = matches.reshape((-1,2))
+            print("Bad path motherfucker: %s"%matches_path)
+            exit(1)
+        print("line_matches: ", matches)
 
-        ## uncomment if you have issues with estimateUncalibrated. It means that
-        ## the indices are your matches are fucked up and do not correspond to
-        ## your feature indices. Good luck with that, because this is a very
-        ## annoying bug.
-        #features_path1 = "%s/%s.txt"%(paths.feature_path, image_name1)
-        #features_path2 = "%s/%s.txt"%(paths.feature_path, image_name2)
+        # read the box corners intersection matches
+        matches_path = "%s/box_point_matches/%s_%s.txt"%(paths.match_path,
+                fn1.replace("/","-"), fn2.replace("/","-"))
+        box_matches = None
+        if os.path.exists(matches_path):
+            data = [l.split("\n")[0].split(" ") for l in
+                    open(matches_path).readlines()]
+            if (len(data)) > 1: # i.e. more than the header
+                box_matches = np.array(data[1:]).astype(np.uint32)
 
-        #if not os.path.exists(features_path1):
-        #    #print(features_path)
-        #    false_count += 1
-        #    keypoints1 = np.arange(8).reshape((4,2)).astype(np.float32)
-        #else:
-        #    features1 = np.loadtxt(features_path1, skiprows=1)
-        #    keypoints1 = features1[:,:4].astype(np.float32)
-        #if not os.path.exists(features_path2):
-        #    #print(features_path)
-        #    false_count += 1
-        #    keypoints2 = np.arange(8).reshape((4,2)).astype(np.float32)
-        #else:
-        #    features2 = np.loadtxt(features_path2, skiprows=1)
-        #    keypoints2 = features2[:,:4].astype(np.float32)
+            print("box_matches: ", box_matches)
+            if matches is None:
+                matches = box_matches
+            else: 
+                # shift the box matches by the number of features in each image
+                # respectively.
+                shift1 = id_shifts[image_name1] 
+                shift2 = id_shifts[image_name2]
 
-        #match_max1 = np.max(matches[:,0])
-        #match_max2 = np.max(matches[:,1])
-        #image_id1, image_id2 = images[image_name1], images[image_name2]
-        #if (match_max1 >= features1.shape[0]):
-        #    print("fail1: %s %s %d %d"%(image_name1, image_name2, image_id1,
-        #        image_id2))
-        #    print("match_max1 >= # features1: %d >= %s"%(match_max1,
-        #        features1.shape[0]))
-        #if (match_max2 >= features2.shape[0]):
-        #    print("fail2: %s %s %d %d"%(image_name1, image_name2, image_id1,
-        #        image_id2))
-        #    print("match_max2 >= # features2: %d >= %s"%(match_max2,
-        #        features2.shape[0]))
-        #assert(match_max1 < features1.shape[0])
-        #assert(match_max2 < features2.shape[0])
+                #features_path1 = "%s/intersection_features/%s.txt"%(paths.feature_path, image_name1)
+                #if os.path.exists(features_path1):
+                #    features1 = np.loadtxt(features_path1, skiprows=1)
+                #    shift1 = features1.shape[0]
+                #features_path2 = "%s/intersection_features/%s.txt"%(paths.feature_path, image_name2)
+                #if os.path.exists(features_path2):
+                #    features2 = np.loadtxt(features_path2, skiprows=1)
+                #    shift2 = features2.shape[0]
+
+                box_matches[:,0] = box_matches[:,0] + shift1
+                box_matches[:,1] = box_matches[:,1] + shift2
+                matches = np.vstack((matches, box_matches))
+        else:
+            print("Bad path motherfucker: %s"%matches_path)
+            exit(1)
+        print("matches: ", box_matches)
+
+        if matches is None:
+            print("FUCKING None MACHES")
+            matches = np.array([[0,0],[1,1]]).astype(np.uint32) # random matches
+            exit(1)
+        else:
+            print("WTF")
+            exit(1)
 
         count += 1
-
-        
-        #features_path1 = os.path.join(paths.image_path, '%s.%s' % (image_name1, args.method_name))
-        #features_path2 = os.path.join(paths.image_path, '%s.%s' % (image_name2, args.method_name))
-
-        #descriptors1 = torch.from_numpy(np.load(features_path1)['descriptors']).to(device)
-        #descriptors2 = torch.from_numpy(np.load(features_path2)['descriptors']).to(device)
-        #matches = mutual_nn_matcher(descriptors1, descriptors2).astype(np.uint32)
 
         image_id1, image_id2 = images[image_name1], images[image_name2]
         image_pair_id = image_ids_to_pair_id(image_id1, image_id2)
@@ -438,25 +449,13 @@ if __name__ == "__main__":
  
     args = parser.parse_args()
 
-    ## Torch settings for the matcher.
-    #use_cuda = torch.cuda.is_available()
-    #device = torch.device("cuda:0" if use_cuda else "cpu")
-
     # Create the extra paths.
     paths = types.SimpleNamespace()
     paths.dummy_database_path = os.path.join(args.dataset_path, 'database.db')
-    #paths.database_path = os.path.join(args.dataset_path, args.method_name + '.db')
     paths.image_path = os.path.join(args.dataset_path, 'images', 'images_upright')
-    #paths.features_path = os.path.join(args.dataset_path, args.method_name)
     paths.reference_model_path = os.path.join(args.dataset_path, '3D-models')
     paths.match_list_path = os.path.join(args.dataset_path, 'image_pairs_to_match.txt')
     #paths.match_list_path = os.path.join(args.dataset_path, 'image_pairs_to_match_light1.txt')
-    
-    #paths.empty_model_path = os.path.join(args.dataset_path, 'sparse-%s-empty' % args.method_name)
-    #paths.database_model_path = os.path.join(args.dataset_path, 'sparse-%s-database' % args.method_name)
-    #paths.final_model_path = os.path.join(args.dataset_path, 'sparse-%s-final' % args.method_name)
-    #paths.final_txt_model_path = os.path.join(args.dataset_path, 'sparse-%s-final-txt' % args.method_name)
-    #paths.prediction_path = os.path.join(args.dataset_path, 'Aachen_eval_[%s].txt' % args.method_name)
     
     paths.feature_path = args.feat_path
     paths.match_path = args.match_path
@@ -478,11 +477,9 @@ if __name__ == "__main__":
     images, cameras = recover_database_images_and_ids(paths, args)
     
     generate_empty_reconstruction(images, cameras, camera_parameters, paths, args)
-    import_features(images, paths, args)
-
-    match_features(images, paths, args)
-    ##match_features_debug(images, paths, args)
-    geometric_verification(paths, args)
-    reconstruct(paths, args)
-    register_queries(paths, args)
-    recover_query_poses(paths, args)
+    id_shifts = import_features(images, paths, args)
+    match_features(images, paths, args, id_shifts)
+    #geometric_verification(paths, args)
+    #reconstruct(paths, args)
+    #register_queries(paths, args)
+    #recover_query_poses(paths, args)

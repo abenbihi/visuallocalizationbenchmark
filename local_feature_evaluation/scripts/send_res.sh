@@ -2,7 +2,7 @@
 
 data=aachen
 method=anubis
-trials=9
+trials=15
 
 remote_dir=benbiass@147.32.84.13:/datagrid/personal/benbiass/ws/tools/vlb/local_feature_evaluation/
 
