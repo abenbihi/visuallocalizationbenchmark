@@ -7,7 +7,7 @@ data_dir=data/aachen-day-night/
 colmap_dir="$WS_DIR"tools/colmap/build/src/exe/
 
 method=anubis
-trial=19
+trial=24
 
 anubis_dir="$WS_DIR"/tools/anubis/res/localization/"$trial"
 
@@ -56,8 +56,8 @@ data_dir=data/aachen-day-night/
 colmap_dir="$WS_DIR"tools/colmap/build/src/exe/
 
 method=anubis
-anubis_trial=15
-loc_trial=21
+anubis_trial=24
+loc_trial=24
 
 anubis_dir="$WS_DIR"/tools/anubis/res/localization/"$anubis_trial"
 feat_path="$anubis_dir"/
@@ -65,8 +65,8 @@ match_path="$anubis_dir"/
 
 res_path=res/"$data"/"$method"/"$loc_trial"
 
-#rm -rf "$res_path"
-#mkdir -p "$res_path"
+rm -rf "$res_path"
+mkdir -p "$res_path"
 
 python3 aachen_box_lines.py \
   --dataset_path "$data_dir" \

@@ -32,6 +32,7 @@ def array_to_blob(array):
 def recover_database_images_and_ids(paths, args):
     # Connect to the database.
     connection = sqlite3.connect(paths.database_path)
+    print(paths.database_path)
     cursor = connection.cursor()
 
     # Recover database images and ids.
@@ -496,19 +497,19 @@ if __name__ == "__main__":
     paths.prediction_path = "%s/Aachen_eval_%s.txt"%(args.res_path, args.method_name)
 
 
-    ## Create a copy of the dummy database.
-    #if os.path.exists(paths.database_path):
-    #    raise FileExistsError('The database file already exists for method %s.' % args.method_name)
-    #shutil.copyfile(paths.dummy_database_path, paths.database_path)
+    # Create a copy of the dummy database.
+    if os.path.exists(paths.database_path):
+        raise FileExistsError('The database file already exists for method %s.' % args.method_name)
+    shutil.copyfile(paths.dummy_database_path, paths.database_path)
     
     ## Reconstruction pipeline.
     camera_parameters = preprocess_reference_model(paths, args)
     images, cameras = recover_database_images_and_ids(paths, args)
     
-    #generate_empty_reconstruction(images, cameras, camera_parameters, paths, args)
-    #id_shifts = import_features(images, paths, args)
-    #match_features(images, paths, args, id_shifts)
-    #geometric_verification(paths, args)
-    #reconstruct(paths, args)
+    generate_empty_reconstruction(images, cameras, camera_parameters, paths, args)
+    id_shifts = import_features(images, paths, args)
+    match_features(images, paths, args, id_shifts)
+    geometric_verification(paths, args)
+    reconstruct(paths, args)
     register_queries(paths, args)
     recover_query_poses(paths, args)
