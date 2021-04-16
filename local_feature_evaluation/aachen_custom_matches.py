@@ -25,6 +25,9 @@ from utils import quaternion_to_rotation_matrix, camera_center_to_translation
 import sys
 IS_PYTHON3 = sys.version_info[0] >= 3
 
+import warnings
+warnings.filterwarnings('ignore') # to avoid warnings for empty matches
+
 DEBUG = (1==1)
 
 def array_to_blob(array):
@@ -206,14 +209,16 @@ def match_features(images, paths, args):
 
     with open(paths.match_list_path, 'r') as f:
         raw_pairs = f.readlines()
+
+    empty_pairs = []
     
     image_pair_ids = set()
     count, false_count, empty_count = 0,0,0
     for raw_pair in tqdm(raw_pairs, total=len(raw_pairs)):
         image_name1, image_name2 = raw_pair.strip('\n').split(' ')
 
-        fn1 = image_name1.split(".")[0]
-        fn2 = image_name2.split(".")[0]
+        fn1 = image_name1#.split(".")[0]
+        fn2 = image_name2#.split(".")[0]
         match_fn = "%s/%s_%s.txt"%(paths.match_path, fn1.replace("/","-"),
                 fn2.replace("/","-"))
         
@@ -227,6 +232,7 @@ def match_features(images, paths, args):
             if matches.shape[0] == 0: # bm could not match keypoints
                 matches = np.array([[0,0],[1,1]]).astype(np.uint32) # random matches
                 empty_count += 1
+                empty_pairs.append([image_name1, image_name2])
             else:
                 matches = matches[:,:2].astype(np.uint32)
 
@@ -252,6 +258,10 @@ def match_features(images, paths, args):
     cursor.close()
     connection.close()
 
+    if len(empty_pairs) > 0:
+      empty_pairs = np.vstack(empty_pairs)
+      np.savetxt("%s/empty_matches.txt"%args.res_path, empty_pairs, fmt="%s")
+
 def geometric_verification(paths, args):
     print('Running geometric verification...')
 
@@ -261,7 +271,8 @@ def geometric_verification(paths, args):
                      #'--SiftMatching.num_threads', "1",
                      '--log_to_stderr', '1',
                      '--log_level', '5',
-                     '--match_type', 'pairs'])
+                     '--match_type', 'pairs',
+                     '--SiftMatching.num_threads', '%d'%args.num_threads])
 
 
 def reconstruct(paths, args):
@@ -276,7 +287,8 @@ def reconstruct(paths, args):
                      '--output_path', paths.database_model_path,
                      '--Mapper.ba_refine_focal_length', '0',
                      '--Mapper.ba_refine_principal_point', '0',
-                     '--Mapper.ba_refine_extra_params', '0'])
+                     '--Mapper.ba_refine_extra_params', '0',
+                     '--Mapper.num_threads', '%d'%args.num_threads])
 
 
 def register_queries(paths, args):
@@ -290,7 +302,8 @@ def register_queries(paths, args):
                      '--output_path', paths.final_model_path,
                      '--Mapper.ba_refine_focal_length', '0',
                      '--Mapper.ba_refine_principal_point', '0',
-                     '--Mapper.ba_refine_extra_params', '0'])
+                     '--Mapper.ba_refine_extra_params', '0',
+                     '--Mapper.num_threads', '%d'%args.num_threads])
 
 
 def recover_query_poses(paths, args):
@@ -343,6 +356,7 @@ if __name__ == "__main__":
     parser.add_argument('--res_path', type=str, required=True)
     parser.add_argument('--feat_path', type=str, required=True)
     parser.add_argument('--match_path', type=str, required=True)
+    parser.add_argument('--num_threads', type=int, required=True)
  
     args = parser.parse_args()
 
@@ -357,8 +371,8 @@ if __name__ == "__main__":
     paths.image_path = os.path.join(args.dataset_path, 'images', 'images_upright')
     #paths.features_path = os.path.join(args.dataset_path, args.method_name)
     paths.reference_model_path = os.path.join(args.dataset_path, '3D-models')
-    #paths.match_list_path = os.path.join(args.dataset_path, 'image_pairs_to_match.txt')
-    paths.match_list_path = os.path.join(args.dataset_path, 'image_pairs_to_match_light1.txt')
+    paths.match_list_path = os.path.join(args.dataset_path, 'image_pairs_to_match.txt')
+    #paths.match_list_path = os.path.join(args.dataset_path, 'image_pairs_to_match_light1.txt')
     
     #paths.empty_model_path = os.path.join(args.dataset_path, 'sparse-%s-empty' % args.method_name)
     #paths.database_model_path = os.path.join(args.dataset_path, 'sparse-%s-database' % args.method_name)
@@ -390,6 +404,6 @@ if __name__ == "__main__":
 
     match_features(images, paths, args)
     geometric_verification(paths, args)
-    #reconstruct(paths, args)
-    #register_queries(paths, args)
-    #recover_query_poses(paths, args)
+    reconstruct(paths, args)
+    register_queries(paths, args)
+    recover_query_poses(paths, args)
