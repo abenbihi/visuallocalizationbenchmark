@@ -1,6 +1,45 @@
 #!/bin/sh
 . ./scripts/export_path.sh
 
+# TODO
+method=adalam
+
+data=aachen
+data_dir=data/aachen-day-night/
+colmap_dir="$WS_DIR"tools/colmap/build/src/exe/
+img_dir="$VLB_DIR"/data/aachen-day-night/images/images_upright/
+
+if [ "$method" = "adalam" ]; then
+
+feat_dir="$VLB_DIR"/data/aachen-day-night/features/images_upright_subset/
+adalam_match_path="$WS_DIR"/tools/AdaLAM/res/aachen/
+
+trial=0
+repetition=1
+
+i=0
+while [ "$i" -lt "$repetition" ]
+do
+  echo "$i"
+
+  res_path=res/"$data"/"$method"/"$trial"/"$i"/
+  match_path="$adalam_match_path"/"$trial"/"$i"/
+
+  rm -rf "$res_path"
+  mkdir -p "$res_path"
+
+  python3 aachen_custom_matches.py \
+      --dataset_path "$data_dir" \
+      --colmap_path "$colmap_dir" \
+      --method_name "$method" \
+      --res_path "$res_path" \
+      --feat_path "$feat_path" \
+      --match_path "$match_path" \
+      --format "$method"
+  done
+fi
+
+
 if [ 0 -eq 1 ]; then
 data=aachen
 data_dir=data/aachen-day-night/
@@ -50,7 +89,7 @@ python3 aachen_box.py \
 fi
 
 
-if [ 1 -eq 1 ]; then
+if [ 0 -eq 1 ]; then
 data=aachen
 data_dir=data/aachen-day-night/
 colmap_dir="$WS_DIR"tools/colmap/build/src/exe/
