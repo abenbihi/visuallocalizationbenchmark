@@ -163,6 +163,7 @@ def import_features(images, paths, args):
                 continue
 
         features_path = "%s/%s.txt"%(paths.feature_path, image_name)
+        #print(features_path)
 
         if not os.path.exists(features_path):
             #print(features_path)
@@ -216,9 +217,17 @@ def match_features(images, paths, args):
     count, false_count, empty_count = 0,0,0
     for raw_pair in tqdm(raw_pairs, total=len(raw_pairs)):
         image_name1, image_name2 = raw_pair.strip('\n').split(' ')
+        
+        if args.format == "adalam":
+            # adalam
+            fn1 = image_name1
+            fn2 = image_name2
+        elif args.format == "horus":
+            fn1 = image_name1.split(".")[0]
+            fn2 = image_name2.split(".")[0]
+        else:
+            raise ValueError("Unknown match format: %s"%args.format)
 
-        fn1 = image_name1#.split(".")[0]
-        fn2 = image_name2#.split(".")[0]
         match_fn = "%s/%s_%s.txt"%(paths.match_path, fn1.replace("/","-"),
                 fn2.replace("/","-"))
         
@@ -228,13 +237,20 @@ def match_features(images, paths, args):
             matches = np.array([[0,0],[1,1]]).astype(np.uint32)
             false_count += 1
         else:
-            matches = np.loadtxt(match_fn)
+            if args.format == "adalam":
+                matches = np.loadtxt(match_fn)
+            if args.format == "horus":
+                matches = np.loadtxt(match_fn, skiprows=1)
+
             if matches.shape[0] == 0: # bm could not match keypoints
                 matches = np.array([[0,0],[1,1]]).astype(np.uint32) # random matches
                 empty_count += 1
                 empty_pairs.append([image_name1, image_name2])
             else:
-                matches = matches[:,:2].astype(np.uint32)
+                if args.format == "adalam":
+                    matches = matches[:,:2].astype(np.uint32) # adalam
+                matches = matches.reshape((-1,2))
+                matches = matches.astype(np.uint32)
 
         count += 1
 
@@ -357,6 +373,7 @@ if __name__ == "__main__":
     parser.add_argument('--feat_path', type=str, required=True)
     parser.add_argument('--match_path', type=str, required=True)
     parser.add_argument('--num_threads', type=int, required=True)
+    parser.add_argument('--format', type=str, required=True)
  
     args = parser.parse_args()
 

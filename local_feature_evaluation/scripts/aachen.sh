@@ -13,82 +13,93 @@ data_dir=data/aachen-day-night/
 colmap_dir=/usr/local/bin/
 img_dir="$VLB_DIR"/data/aachen-day-night/images/images_upright/
 
-if [ "$method" = "adalam" ]; then
-  echo "LOCALIZATION for "$method""
-  feat_path="$VLB_DIR"/data/aachen-day-night/features/images_upright_subset/
-  adalam_match_path="$WS_DIR"/tools/AdaLAM/res/aachen/
-
-  trial=0
-  repetition=2
-
-  i=1
-  while [ "$i" -lt "$repetition" ]
-  do
-    echo "$i"
-
-    res_path=res/"$data"/"$method"/"$trial"/"$i"/
-    match_path="$adalam_match_path"/"$trial"/"$i"/
-
-    echo "feat_path: "$feat_path""
-    echo "match_path: "$match_path""
-    i="$((i+1))"
-
-    rm -rf "$res_path"
-    mkdir -p "$res_path"
-
-    python3 aachen_custom_matches.py \
-      --dataset_path "$data_dir" \
-      --colmap_path "$colmap_dir" \
-      --method_name "$method" \
-      --res_path "$res_path" \
-      --feat_path "$feat_path" \
-      --match_path "$match_path" \
-      --num_threads "$num_threads"
-
-    if [ "$?" -ne 0 ]; then
-      echo "Error when running "$method" "$i"/"$repetition""
-      exit 1
-    fi
-  done
-fi
-
 if [ "$method" = "horus" ]; then
   echo "LOCALIZATION for "$method""
 
   feat_path="$VLB_DIR"/data/aachen-day-night/features/ #images_upright_subset/
   horus_match_path="$WS_DIR"/tools/anubis/res/localization/
 
-  trial=43
-  repetition=1
+  match_trial=43
+  match_iter_max=1
+  match_iter=0
 
-  i=0
-  while [ "$i" -lt "$repetition" ]
+  loc_iter_max=3
+  echo "feat_path: "$feat_path""
+
+  echo "Match trial: "$match_trial""
+  while [ "$match_iter" -lt "$match_iter_max" ];
   do
-    echo "$i"
+    #echo "Match iter: "$match_iter""
+    match_path="$horus_match_path"/"$match_trial"/"$match_iter"/point_matches/
+    echo "match_path: "$match_path""
 
-    res_path=res/"$data"/"$method"/"$trial"/"$i"/
-    match_path="$horus_match_path"/"$trial"/point_matches/
-    i="$((i+1))"
+    loc_iter=2
+    while [ "$loc_iter" -lt "$loc_iter_max" ];
+    do
+      echo "Match iter / Loc iter: "$match_iter" / "$loc_iter""
+      res_path=res/"$data"/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/
+      loc_iter="$((loc_iter+1))"
 
-    rm -rf "$res_path"
-    mkdir -p "$res_path"
+      rm -rf "$res_path"
+      mkdir -p "$res_path"
 
-    python3 aachen_custom_matches.py \
-      --dataset_path "$data_dir" \
-      --colmap_path "$colmap_dir" \
-      --method_name "$method" \
-      --res_path "$res_path" \
-      --feat_path "$feat_path" \
-      --match_path "$match_path" \
-      --num_threads "$num_threads"
+      python3 aachen_custom_matches.py \
+        --dataset_path "$data_dir" \
+        --colmap_path "$colmap_dir" \
+        --method_name "$method" \
+        --res_path "$res_path" \
+        --feat_path "$feat_path" \
+        --match_path "$match_path" \
+        --num_threads "$num_threads" \
+        --format "$method"
 
-    if [ "$?" -ne 0 ]; then
-      echo "Error when running "$method" "$i"/"$repetition""
-      exit 1
-    fi
+    done
+    match_iter="$((match_iter+1))"
   done
 fi
 
+if [ "$method" = "adalam" ]; then
+  echo "LOCALIZATION for "$method""
+  feat_path="$VLB_DIR"/data/aachen-day-night/features/images_upright_subset/
+  adalam_match_path="$WS_DIR"/tools/AdaLAM/res/aachen/
+
+  match_trial=0
+  match_iter_max=2
+  match_iter=0
+
+  loc_iter_max=2
+  echo "feat_path: "$feat_path""
+
+  echo "Match trial: "$match_trial""
+  while [ "$match_iter" -lt "$match_iter_max" ];
+  do
+    #echo "Match iter: "$match_iter""
+    match_path="$adalam_match_path"/"$match_trial"/"$match_iter"/
+    echo "match_path: "$match_path""
+
+    loc_iter=0
+    while [ "$loc_iter" -lt "$loc_iter_max" ];
+    do
+      echo "Match iter / Loc iter: "$match_iter" / "$loc_iter""
+      res_path=res/"$data"/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/
+      loc_iter="$((loc_iter+1))"
+
+      rm -rf "$res_path"
+      mkdir -p "$res_path"
+
+      python3 aachen_custom_matches.py \
+        --dataset_path "$data_dir" \
+        --colmap_path "$colmap_dir" \
+        --method_name "$method" \
+        --res_path "$res_path" \
+        --feat_path "$feat_path" \
+        --match_path "$match_path" \
+        --num_threads "$num_threads"
+
+    done
+    match_iter="$((match_iter+1))"
+  done
+fi
 
 if [ 0 -eq 1 ]; then
   data=aachen
