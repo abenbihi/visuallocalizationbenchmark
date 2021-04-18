@@ -17,33 +17,59 @@ if [ "$method" = "adalam" ]; then
   feat_path="$VLB_DIR"/data/aachen-day-night/features/images_upright_subset/
   adalam_match_path="$WS_DIR"/tools/AdaLAM/res/aachen/
 
-  trial=0
-  repetition=2
+  match_trial=0
+  match_iter_max=2
+  match_iter=0
 
-  i=1
-  while [ "$i" -lt "$repetition" ]
+  loc_iter_max=2
+  #match_iter=0
+  #lrepetition=2
+  echo "feat_path: "$feat_path""
+
+  echo "Match trial: "$match_trial""
+  while [ "$match_iter" -lt "$match_iter_max" ];
   do
-    echo "$i"
-
-    res_path=res/"$data"/"$method"/"$trial"/"$i"/
-    match_path="$adalam_match_path"/"$trial"/"$i"/
-
-    echo "feat_path: "$feat_path""
+    #echo "Match iter: "$match_iter""
+    match_path="$adalam_match_path"/"$match_trial"/"$match_iter"/
     echo "match_path: "$match_path""
-    i="$((i+1))"
 
-    rm -rf "$res_path"
-    mkdir -p "$res_path"
+    loc_iter=0
+    while [ "$loc_iter" -lt "$loc_iter_max" ];
+    do
+      echo "Match iter / Loc iter: "$match_iter" / "$loc_iter""
+      res_path=res/"$data"/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/
+      loc_iter="$((loc_iter+1))"
 
-    python3 aachen_custom_matches.py \
-      --dataset_path "$data_dir" \
-      --colmap_path "$colmap_dir" \
-      --method_name "$method" \
-      --res_path "$res_path" \
-      --feat_path "$feat_path" \
-      --match_path "$match_path" \
-      --num_threads "$num_threads"
+      rm -rf "$res_path"
+      mkdir -p "$res_path"
+
+      python3 aachen_custom_matches.py \
+        --dataset_path "$data_dir" \
+        --colmap_path "$colmap_dir" \
+        --method_name "$method" \
+        --res_path "$res_path" \
+        --feat_path "$feat_path" \
+        --match_path "$match_path" \
+        --num_threads "$num_threads"
+
+    done
+    match_iter="$((match_iter+1))"
   done
+
+
+  #i=1
+  #while [ "$i" -lt "$repetition" ]
+  #do
+  #  echo "$i"
+
+  #  res_path=res/"$data"/"$method"/"$trial"/"$i"/
+
+  #  echo "feat_path: "$feat_path""
+  #  echo "match_path: "$match_path""
+  #  i="$((i+1))"
+
+ 
+  #done
 fi
 
 
