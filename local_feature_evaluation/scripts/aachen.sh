@@ -4,6 +4,7 @@
 
 # TODO
 method=adalam
+method=horus
 num_threads=16
 
 data=aachen
@@ -43,6 +44,48 @@ if [ "$method" = "adalam" ]; then
       --feat_path "$feat_path" \
       --match_path "$match_path" \
       --num_threads "$num_threads"
+
+    if [ "$?" -ne 0 ]; then
+      echo "Error when running "$method" "$i"/"$repetition""
+      exit 1
+    fi
+  done
+fi
+
+if [ "$method" = "horus" ]; then
+  echo "LOCALIZATION for "$method""
+
+  feat_path="$VLB_DIR"/data/aachen-day-night/features/ #images_upright_subset/
+  horus_match_path="$WS_DIR"/tools/anubis/res/localization/
+
+  trial=43
+  repetition=1
+
+  i=0
+  while [ "$i" -lt "$repetition" ]
+  do
+    echo "$i"
+
+    res_path=res/"$data"/"$method"/"$trial"/"$i"/
+    match_path="$horus_match_path"/"$trial"/point_matches/
+    i="$((i+1))"
+
+    rm -rf "$res_path"
+    mkdir -p "$res_path"
+
+    python3 aachen_custom_matches.py \
+      --dataset_path "$data_dir" \
+      --colmap_path "$colmap_dir" \
+      --method_name "$method" \
+      --res_path "$res_path" \
+      --feat_path "$feat_path" \
+      --match_path "$match_path" \
+      --num_threads "$num_threads"
+
+    if [ "$?" -ne 0 ]; then
+      echo "Error when running "$method" "$i"/"$repetition""
+      exit 1
+    fi
   done
 fi
 
