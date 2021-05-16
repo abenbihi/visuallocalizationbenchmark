@@ -2,56 +2,95 @@
 # rci: salloc -p gpufast --gres=gpu:1 --mincpus=16 -t 240
 . ./scripts/export_path.sh
 
-# TODO
-method=adalam
-method=horus
-num_threads=16
-
 data=aachen
 data_dir=data/aachen-day-night/
 #colmap_dir="$WS_DIR"tools/colmap/build/src/exe/
 colmap_dir=/usr/local/bin/
 img_dir="$VLB_DIR"/data/aachen-day-night/images/images_upright/
 
-if [ "$method" = "horus" ]; then
+# TODO
+method=adalam
+method=horus
+#method=anubis
+num_threads=16
+
+#cluster_name=" "
+cluster_name=impasse_church
+
+if [ "$cluster_name" = " " ]; then
+  match_list="$data_dir"image_pairs_to_match.txt
+  #match_list="$data_dir"image_pairs_to_match_light1.txt
+else
+  scene_trial=20 # query clusters
+  meta_dir="$AACHEN_META_DIR"/scenes/"$scene_trial"/"$cluster_name"/
+  match_list="$meta_dir"/pairs.txt
+fi
+
+echo "method: "$method""
+echo "cluster_name: "$cluster_name""
+echo "match_list: "$match_list""
+
+if [ "$method" = "horus" ] || [ "$method" = "anubis" ] ; then
   echo "LOCALIZATION for "$method""
 
   feat_path="$VLB_DIR"/data/aachen-day-night/features/ #images_upright_subset/
   horus_match_path="$WS_DIR"/tools/anubis/res/localization/
 
-  match_trial=43
+  match_trial=51
   match_iter_max=1
   match_iter=0
 
-  loc_iter_max=3
+  loc_iter_max=1
   echo "feat_path: "$feat_path""
 
   echo "Match trial: "$match_trial""
   while [ "$match_iter" -lt "$match_iter_max" ];
   do
-    #echo "Match iter: "$match_iter""
-    match_path="$horus_match_path"/"$match_trial"/"$match_iter"/point_matches/
+    echo "Match iter: "$match_iter""
+    match_path="$horus_match_path"/"$match_trial"/"$match_iter"/"$cluster_name"/point_matches/
+
     echo "match_path: "$match_path""
 
-    loc_iter=2
+    loc_iter=0
     while [ "$loc_iter" -lt "$loc_iter_max" ];
     do
       echo "Match iter / Loc iter: "$match_iter" / "$loc_iter""
-      res_path=res/"$data"/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/
+      res_path=res/"$data"/"$method"/"$match_trial"/"$match_iter"/"$cluster_name"/"$loc_iter"/
       loc_iter="$((loc_iter+1))"
 
       rm -rf "$res_path"
       mkdir -p "$res_path"
 
-      python3 aachen_custom_matches.py \
-        --dataset_path "$data_dir" \
-        --colmap_path "$colmap_dir" \
-        --method_name "$method" \
-        --res_path "$res_path" \
-        --feat_path "$feat_path" \
-        --match_path "$match_path" \
-        --num_threads "$num_threads" \
-        --format "$method"
+      if [ 0 -eq 1 ]; then
+        python3 aachen_custom_matches.py \
+          --dataset_path "$data_dir" \
+          --colmap_path "$colmap_dir" \
+          --method_name "$method" \
+          --res_path "$res_path" \
+          --feat_path "$feat_path" \
+          --match_path "$match_path" \
+          --num_threads "$num_threads" \
+          --format "$method" \
+          --match_list "$match_list"
+      fi
+ 
+      if [ 1 -eq 1 ]; then
+        box_corner_path="$horus_match_path"/"$match_trial"/distorted_box_corner_features/
+        box_corner_match_path="$horus_match_path"/"$match_trial"/"$match_iter"/"$cluster_name"/box_point_matches/
+
+        python3 aachen_custom_matches_and_box_corners.py \
+          --dataset_path "$data_dir" \
+          --colmap_path "$colmap_dir" \
+          --method_name "$method" \
+          --res_path "$res_path" \
+          --feat_path "$feat_path" \
+          --box_corner_path "$box_corner_path" \
+          --match_path "$match_path" \
+          --box_corner_match_path "$box_corner_match_path" \
+          --num_threads "$num_threads" \
+          --format "$method" \
+          --match_list "$match_list"
+      fi
 
     done
     match_iter="$((match_iter+1))"

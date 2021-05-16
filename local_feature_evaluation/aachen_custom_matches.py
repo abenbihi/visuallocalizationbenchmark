@@ -225,6 +225,9 @@ def match_features(images, paths, args):
         elif args.format == "horus":
             fn1 = image_name1.split(".")[0]
             fn2 = image_name2.split(".")[0]
+        elif args.format == "anubis":
+            fn1 = image_name1.split(".")[0]
+            fn2 = image_name2.split(".")[0]
         else:
             raise ValueError("Unknown match format: %s"%args.format)
 
@@ -241,6 +244,9 @@ def match_features(images, paths, args):
                 matches = np.loadtxt(match_fn)
             if args.format == "horus":
                 matches = np.loadtxt(match_fn, skiprows=1)
+            if args.format == "anubis":
+                matches = np.loadtxt(match_fn, skiprows=1)
+
 
             if matches.shape[0] == 0: # bm could not match keypoints
                 matches = np.array([[0,0],[1,1]]).astype(np.uint32) # random matches
@@ -374,6 +380,7 @@ if __name__ == "__main__":
     parser.add_argument('--match_path', type=str, required=True)
     parser.add_argument('--num_threads', type=int, required=True)
     parser.add_argument('--format', type=str, required=True)
+    parser.add_argument('--match_list', type=str, required=True)
  
     args = parser.parse_args()
 
@@ -388,7 +395,8 @@ if __name__ == "__main__":
     paths.image_path = os.path.join(args.dataset_path, 'images', 'images_upright')
     #paths.features_path = os.path.join(args.dataset_path, args.method_name)
     paths.reference_model_path = os.path.join(args.dataset_path, '3D-models')
-    paths.match_list_path = os.path.join(args.dataset_path, 'image_pairs_to_match.txt')
+    paths.match_list_path = args.match_list
+    #paths.match_list_path = os.path.join(args.dataset_path, 'image_pairs_to_match.txt')
     #paths.match_list_path = os.path.join(args.dataset_path, 'image_pairs_to_match_light1.txt')
     
     #paths.empty_model_path = os.path.join(args.dataset_path, 'sparse-%s-empty' % args.method_name)

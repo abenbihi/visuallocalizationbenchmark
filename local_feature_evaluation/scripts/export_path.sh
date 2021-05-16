@@ -21,3 +21,7 @@ CMU_IMG_DIR=/media/abenbihi/My\ Passport/ws/datasets/Extended-CMU-Seasons/bgr/
 TOURISM_DIR="$WS_DIR"/datasets/tourism/
 
 VLB_DIR="$WS_DIR"/tools/vlb/local_feature_evaluation/
+
+AACHEN_IMG_DIR="$WS_DIR"/tools/vlb/local_feature_evaluation/data/aachen-day-night/images/
+AACHEN_FEAT_DIR="$WS_DIR"/tools/vlb/local_feature_evaluation/data/aachen-day-night/features/
+AACHEN_META_DIR="$WS_DIR"/datasets/pydata/aachen/meta/
