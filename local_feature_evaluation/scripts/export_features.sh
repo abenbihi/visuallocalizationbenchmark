@@ -1,7 +1,8 @@
 #!/bin/sh
 
-if [ 0 -eq 1 ]; then # extract features from database
-  database_path=data/aachen-day-night/aachen.db
+if [ 1 -eq 1 ]; then # extract features from database
+  #database_path=data/aachen-day-night/aachen.db
+  database_path=/media/abenbihi/ext_drive2/ws/tools/vlb/local_feature_evaluation/data/aachen-day-night/aachen.db
   image_path=data/aachen-day-night/images/images_upright/
   output_path=data/aachen-day-night/features/
   min_num_matches=15
@@ -25,7 +26,7 @@ if [ 0 -eq 1 ]; then # extract features from database
     --binary_feature_files "$binary_feature_files"
 fi
 
-if [ 1 -eq 1 ]; then # rename_features
+if [ 0 -eq 1 ]; then # rename_features
   while read -r line
   do
     fn=data/aachen-day-night/features/"$line"
