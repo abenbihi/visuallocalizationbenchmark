@@ -5,14 +5,22 @@ data=aachen
 #method=anubis
 #trials=23_bis
 
-server=benbiass@147.32.84.13:
+server=ritz
+if [ "$server" = ritz ]; then
+  address=benbiass@147.32.84.13
+  remote_ws=/datagrid/personal/benbiass/ws/
+else 
+  echo "Error: unspecified server"
+  exit 1
+fi
 
-remote_vlb_dir=/datagrid/personal/benbiass/ws/tools/vlb/local_feature_evaluation/
+remote_vlb_dir="$remote_ws"/tools/vlb/local_feature_evaluation/
 
 method=adalam
 match_trial=0
-#loc_iter=0
 
+method=anubis
+match_trial=52
 loc_iter_max=1
 match_iter_max=1
 
@@ -26,13 +34,13 @@ do
   do
     res_path=res/"$data"/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/
 
-    ssh benbiass@147.32.84.13 "cd "$remote_vlb_dir"; mkdir -p "$res_path""
+    ssh "$address" "cd "$remote_vlb_dir"; mkdir -p "$res_path""
     if [ "$?" -ne 0 ]; then
       echo "Error: failed to create remote directory."
       exit 1
     fi
 
-    rsync -avh "$res_path"/Aachen_eval_"$method".txt "$server""$remote_vlb_dir""$res_path"
+    rsync -avh "$res_path"/Aachen_eval_"$method".txt "$address":"$remote_vlb_dir""$res_path"
     if [ "$?" -ne 0 ]; then
       echo "Error: failed to send file."
       echo "File to send: "$res_dir"/Aachen_eval_"$method".txt"
