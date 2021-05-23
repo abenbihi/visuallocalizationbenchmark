@@ -14,8 +14,10 @@ fi
 COLMAP_BIN="$WS_DIR"tools/colmap/build/src/exe/colmap
 PYDATA_DIR="$WS_DIR"datasets/pydata/
 
-CMU_IMG_DIR="$WS_DIR"datasets/Extended-CMU-Seasons/bgr/
-CMU_IMG_DIR=/media/abenbihi/My\ Passport/ws/datasets/Extended-CMU-Seasons/bgr/
+CMU_DIR="$WS_DIR"datasets/Extended-CMU-Seasons/
+CMU_IMG_DIR="$CMU_DIR"slices/ #bgr/
+CMU_FEAT_DIR="$CMU_DIR"features/
+#CMU_IMG_DIR=/media/abenbihi/My\ Passport/ws/datasets/Extended-CMU-Seasons/bgr/
 
 #WASABI_DIR="$WS_DIR"/tf/wasabi/
 TOURISM_DIR="$WS_DIR"/datasets/tourism/

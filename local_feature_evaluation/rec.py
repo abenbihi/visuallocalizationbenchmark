@@ -157,13 +157,12 @@ def import_features(images, paths, args):
     for image_name, image_id in tqdm(images.items(), total=len(images.items())):
         features_path = "%s/%s.txt"%(paths.feature_path, image_name)
         #print(features_path)
-        #print(features_path)
         
-        features = np.loadtxt(features_path)
+        if not os.path.exists(features_path):
+            raise ValueError("No such feature file: %s"%features_path)
+        #features = np.loadtxt(features_path)
+        features = np.loadtxt(features_path, skiprows=1)
         
-        #features = [l.split("\n")[0].split(" ") for l in open(features_path, "r").readlines()]
-        #features = np.array(features[1:])
-
         keypoints = features[:,:4].astype(np.float32)
         keypoints_str = keypoints.tostring()
         cursor.execute("INSERT INTO keypoints(image_id, rows, cols, data) VALUES(?, ?, ?, ?);",
@@ -198,26 +197,49 @@ def match_features(images, paths, args):
         raw_pairs = f.readlines()
     
     image_pair_ids = set()
+    count, false_count, empty_count = 0,0,0
     for raw_pair in tqdm(raw_pairs, total=len(raw_pairs)):
         image_name1, image_name2 = raw_pair.strip('\n').split(' ')
-        #print(image_name1, image_name2)
-        features_path1 = "%s/%s.txt"%(paths.feature_path, image_name1)
-        features_path2 = "%s/%s.txt"%(paths.feature_path, image_name2)
+
+        fn1 = image_name1.split(".")[0]
+        fn2 = image_name2.split(".")[0]
+ 
+        match_fn = "%s/%s_%s.txt"%(paths.match_path, fn1.replace("/","-"),
+                fn2.replace("/","-"))
+        if not os.path.exists(match_fn):
+           print("No such file: %s"%match_fn)
+           false_count += 1
+           exit(0)
+ 
+        if args.format == "adalam":
+            matches = np.loadtxt(match_fn)
+        elif (args.format == "horus" or args.format == "anubi" or
+                args.format=="sift"):
+            matches = np.loadtxt(match_fn, skiprows=1)
+        else:
+            raise ValueError("Unknwon format: %s"%args.format)
+ 
+        if matches.shape[0] == 0: # bm could not match keypoints
+            matches = np.array([[0,0],[1,1]]).astype(np.uint32) # random matches
+            empty_count += 1
+            empty_pairs.append([image_name1, image_name2])
+            empty_count += 1
+        else:
+            if args.format == "adalam":
+                matches = matches[:,:2].astype(np.uint32) # adalam
+            matches = matches.reshape((-1,2))
+            matches = matches.astype(np.uint32)
         
-        descriptors1 = np.loadtxt(features_path1)[:,4:]
-        descriptors2 = np.loadtxt(features_path2)[:,4:]
+        count += 1
 
-        #features = [l.split("\n")[0].split(" ") for l in open(features_path1, "r").readlines()]
-        #descriptors1 = np.array(features[1:])[:,4:].astype(np.float32)
-
-        #features = [l.split("\n")[0].split(" ") for l in open(features_path2, "r").readlines()]
-        #descriptors2 = np.array(features[1:])[:,4:].astype(np.float32)
-        ##print(descriptors2.shape)
-
-
-        descriptors1 = torch.from_numpy(descriptors1).to(device)
-        descriptors2 = torch.from_numpy(descriptors2).to(device)      
-        matches = mutual_nn_matcher(descriptors1, descriptors2).astype(np.uint32)
+        ##print(image_name1, image_name2)
+        #features_path1 = "%s/%s.txt"%(paths.feature_path, image_name1)
+        #features_path2 = "%s/%s.txt"%(paths.feature_path, image_name2)
+        #descriptors1 = np.loadtxt(features_path1)[:,4:]
+        #descriptors2 = np.loadtxt(features_path2)[:,4:]
+        #descriptors1 = torch.from_numpy(descriptors1).to(device)
+        #descriptors2 = torch.from_numpy(descriptors2).to(device)      
+        #matches = mutual_nn_matcher(descriptors1, descriptors2).astype(np.uint32)
 
         image_id1, image_id2 = images[image_name1], images[image_name2]
         image_pair_id = image_ids_to_pair_id(image_id1, image_id2)
@@ -233,6 +255,8 @@ def match_features(images, paths, args):
                        (str(image_pair_id), matches.shape[0], matches.shape[1], matches_str))
         connection.commit()
     
+    print("# negatives matches / # empty matches / total: %d / %d / %d"%(
+        false_count, empty_count, count))
     # Close the connection to the database.
     cursor.close()
     connection.close()
@@ -326,10 +350,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--colmap_ws', required=True, type=str)
     parser.add_argument('--feat_dir', type=str)
+    parser.add_argument('--match_dir', type=str)
     parser.add_argument('--slice_id', type=int)
     parser.add_argument('--cam_id', type=int)
     parser.add_argument('--survey_id', type=int)
-
+    parser.add_argument('--num_threads', type=int, required=True)
+    parser.add_argument('--format', type=str, required=True)
+ 
     #parser.add_argument('--dataset_path', required=True, help='Path to the dataset')
     #parser.add_argument('--colmap_path', required=True, help='Path to the COLMAP executable folder')
     #parser.add_argument('--method_name', required=True, help='Name of the method')
@@ -350,6 +377,7 @@ if __name__ == "__main__":
     #paths.features_path = os.path.join(args.dataset_path, args.method_name)
     #
     paths.feature_path = args.feat_dir
+    paths.match_path = args.match_dir
     paths.database_path = "%s/database.db"%args.colmap_ws
     #paths.empty_model_path = os.path.join(args.res_path, 'sparse-%s-empty' % args.method_name)
     #paths.database_model_path = os.path.join(args.res_path, 'sparse-%s-database' % args.method_name)
@@ -371,9 +399,9 @@ if __name__ == "__main__":
     images, cameras = recover_database_images_and_ids(args)
 
     # init empty database
-    init_db(paths, images, cameras, args)
+    #init_db(paths, images, cameras, args)
 
-    import_features(images, paths, args)
+    #import_features(images, paths, args)
     match_features(images, paths, args)
     #geometric_verification(paths, args)
     #reconstruct(paths, args)

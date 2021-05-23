@@ -20,9 +20,10 @@ method=adalam
 match_trial=0
 
 method=anubis
-match_trial=52
+match_trial=55
+
 loc_iter_max=1
-match_iter_max=1
+match_iter_max=2
 
 res_path=res/"$data"/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/
 
@@ -40,7 +41,8 @@ do
       exit 1
     fi
 
-    rsync -avh "$res_path"/Aachen_eval_"$method".txt "$address":"$remote_vlb_dir""$res_path"
+    #rsync -avh "$res_path"/Aachen_eval_"$method".txt "$address":"$remote_vlb_dir""$res_path"
+    rsync -avh "$res_path"/Aachen_eval_"$method"*.txt "$address":"$remote_vlb_dir""$res_path"
     if [ "$?" -ne 0 ]; then
       echo "Error: failed to send file."
       echo "File to send: "$res_dir"/Aachen_eval_"$method".txt"
