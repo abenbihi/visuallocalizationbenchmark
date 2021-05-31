@@ -38,6 +38,7 @@ fi
 slice_id="$1"
 cam_id="$2"
 survey_id="$3"
+cluster_name="$slice_id"_"$cam_id"
 
 camera_model=OPENCV
 if [ "$cam_id" -eq 0 ]; then 
@@ -71,15 +72,25 @@ echo "$feat_dir"
 
 if [ "$method" = sift ]; then  
   horus_match_path="$WS_DIR"/tools/anubis/res/sift/
-  match_path="$horus_match_path"/"$match_trial"/"$match_iter"/point_matches/
+  match_path="$horus_match_path"/"$match_trial"/"$cluster_name"/"$match_iter"/point_matches/
 else
   echo "Error: unknown method "$method""
   exit 1
 fi
 
+if ! [ -d "$feat_dir" ]; then
+  echo "Error: feature path does not exists: "$feat_dir""
+  exit 1
+fi
+
+if ! [ -d "$match_path" ]; then
+  echo "Error: match path does not exists: "$match_path""
+  exit 1
+fi
+
 colmap_ws=res/cmu/"$feat_name"/"$match_trial"/"$match_iter"/"$loc_iter"/"$slice_id"_c"$cam_id"_"$survey_id"/
 
-if [ 0 -eq 1 ]; then
+if [ 1 -eq 1 ]; then
   if [ -d "$colmap_ws" ]; then
     while true; do
       read -p ""$colmap_ws" already exists. Do you want to overwrite it (y/n) ?" yn
@@ -125,7 +136,7 @@ if [ 0 -eq 1 ]; then
 fi
 
 # TODO: When does the undistortion happen ?
-if [ 0 -eq 1 ]; then
+if [ 1 -eq 1 ]; then
   if ! [ -d "$match_path" ]; then
     echo "Error: no such directory: "$match_path""
     exit 1
@@ -148,7 +159,7 @@ fi
 
 
 # specify img to match
-if [ 0 -eq 1 ]; then
+if [ 1 -eq 1 ]; then
   "$COLMAP_BIN" matches_importer \
     --database_path "$colmap_ws"/database.db \
     --match_list_path "$colmap_ws"/image_pairs_to_match.txt \
@@ -161,7 +172,7 @@ if [ 0 -eq 1 ]; then
 fi
 
 # triangulate the database observations in the 3D model at fixed intrinsics
-if [ 0 -eq 1 ]; then
+if [ 1 -eq 1 ]; then
   #echo "img_dir: "$img_dir""
   "$COLMAP_BIN" point_triangulator \
     --database_path "$colmap_ws"/database.db \
@@ -176,7 +187,7 @@ if [ 0 -eq 1 ]; then
 fi
 
 # Register the query images.
-if [ 0 -eq 1 ]; then
+if [ 1 -eq 1 ]; then
   "$COLMAP_BIN" image_registrator \
     --database_path "$colmap_ws"/database.db \
     --input_path "$colmap_ws"/sparse/ \
@@ -192,7 +203,7 @@ if [ 0 -eq 1 ]; then
 fi
 
 # Convert the model to TXT.
-if [ 0 -eq 1 ]; then
+if [ 1 -eq 1 ]; then
   "$COLMAP_BIN" model_converter \
     --input_path "$colmap_ws"final \
     --output_path "$colmap_ws"final_txt \
@@ -205,26 +216,22 @@ fi
 
 
 if [ 1 -eq 1 ]; then
-  #echo "Write estimated query pose to file."
-  #python3 recover_query_poses.py \
-  #  --gt_pose_fn "$q_dir"/pose.txt \
-  #  --colmap_pose "$colmap_ws"final_txt/images.txt \
-  #  --est_pose_fn "$colmap_ws"/Aachen_eval_"$method_fullname".txt
-  #
-  #if [ "$?" -ne 0 ]; then
-  #  echo "Error in recover_query_poses"
-  #  exit 1
-  #fi
+  echo "Write estimated query pose to file."
+  python3 recover_query_poses.py \
+    --gt_pose_fn "$q_dir"/pose.txt \
+    --colmap_pose "$colmap_ws"final_txt/images.txt \
+    --est_pose_fn "$colmap_ws"/Aachen_eval_"$method"_fullname.txt
+  
+  if [ "$?" -ne 0 ]; then
+    echo "Error in recover_query_poses"
+    exit 1
+  fi
 
   # format the evaluation file (remove slice<i>/db-query)
-   
   while read -r line
   do
     fn="$(echo "$line" | cut -d'/' -f3)"
     res="$(echo "$line" | cut -d' ' -f3-8)"
     echo "$fn" >> "$colmap_ws"/Aachen_eval_"$method".txt
-    #echo "fn: "$fn""
-    #echo "res: "$res""
-    #break
   done < "$colmap_ws"/Aachen_eval_"$method"_fullname.txt
 fi

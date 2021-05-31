@@ -209,7 +209,7 @@ def match_features(images, paths, args):
         if not os.path.exists(match_fn):
            print("No such file: %s"%match_fn)
            false_count += 1
-           exit(0)
+           exit(1)
  
         if args.format == "adalam":
             matches = np.loadtxt(match_fn)
@@ -399,10 +399,11 @@ if __name__ == "__main__":
     images, cameras = recover_database_images_and_ids(args)
 
     # init empty database
-    #init_db(paths, images, cameras, args)
+    init_db(paths, images, cameras, args)
 
-    #import_features(images, paths, args)
+    import_features(images, paths, args)
     match_features(images, paths, args)
+
     #geometric_verification(paths, args)
     #reconstruct(paths, args)
     #register_queries(paths, args)
