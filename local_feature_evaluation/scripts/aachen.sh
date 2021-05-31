@@ -14,10 +14,10 @@ method=horus
 #method=anubis
 num_threads=16
 
-#cluster_name=" "
-cluster_name=impasse_church
+cluster_name=""
+#cluster_name=impasse_church
 
-if [ "$cluster_name" = " " ]; then
+if [ "$cluster_name" = "" ]; then
   match_list="$data_dir"image_pairs_to_match.txt
   #match_list="$data_dir"image_pairs_to_match_light1.txt
 else
@@ -36,11 +36,11 @@ if [ "$method" = "horus" ] || [ "$method" = "anubis" ] ; then
   feat_path="$VLB_DIR"/data/aachen-day-night/features/ #images_upright_subset/
   horus_match_path="$WS_DIR"/tools/anubis/res/localization/
 
-  match_trial=51
+  match_trial=59
   match_iter_max=1
   match_iter=0
 
-  loc_iter_max=1
+  loc_iter_max=2
   echo "feat_path: "$feat_path""
 
   echo "Match trial: "$match_trial""
@@ -51,7 +51,7 @@ if [ "$method" = "horus" ] || [ "$method" = "anubis" ] ; then
 
     echo "match_path: "$match_path""
 
-    loc_iter=0
+    loc_iter=1
     while [ "$loc_iter" -lt "$loc_iter_max" ];
     do
       echo "Match iter / Loc iter: "$match_iter" / "$loc_iter""
@@ -61,7 +61,7 @@ if [ "$method" = "horus" ] || [ "$method" = "anubis" ] ; then
       rm -rf "$res_path"
       mkdir -p "$res_path"
 
-      if [ 0 -eq 1 ]; then
+      if [ 1 -eq 1 ]; then
         python3 aachen_custom_matches.py \
           --dataset_path "$data_dir" \
           --colmap_path "$colmap_dir" \
@@ -74,7 +74,7 @@ if [ "$method" = "horus" ] || [ "$method" = "anubis" ] ; then
           --match_list "$match_list"
       fi
  
-      if [ 1 -eq 1 ]; then
+      if [ 0 -eq 1 ]; then
         box_corner_path="$horus_match_path"/"$match_trial"/distorted_box_corner_features/
         box_corner_match_path="$horus_match_path"/"$match_trial"/"$match_iter"/"$cluster_name"/box_point_matches/
 

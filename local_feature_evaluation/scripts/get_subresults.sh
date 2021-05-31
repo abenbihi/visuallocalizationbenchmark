@@ -17,12 +17,12 @@ match_trial=0
 #match_trial=43
 
 method=anubis
-match_trial=47
+match_trial=55
 
-method=sift
-match_trial=5
+#method=sift
+#match_trial=5
 
-match_iter=0
+match_iter=1
 loc_iter=0
 res_path=res/"$data"/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/
 all_res_fn="$res_path"/Aachen_eval_"$method".txt
@@ -72,4 +72,5 @@ do
     fi
 
   done < "$meta_dir"/images.txt
+  #break
 done < "$cluster_list"/cluster_names.txt

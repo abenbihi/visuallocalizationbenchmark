@@ -11,9 +11,9 @@ session_id=4d3btcg5rfkjv0pn6mk7j4jml473zz9r
 if [ 1 -eq 1 ]; then
   cluster_list="$AACHEN_META_DIR"/scenes/query_clusters/
 
-  method=sift
-  match_trial=5
-  match_iter=0
+  method=anubis
+  match_trial=55
+  match_iter=1
   loc_iter=0
 
   while read -r line
@@ -25,6 +25,7 @@ if [ 1 -eq 1 ]; then
     result_path=res/"$data"/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/Aachen_eval_"$method"_"$cluster_name".txt
 
     if ! [ -f "$result_path" ]; then
+      echo "Warning: no result path: "$result_path""
       continue
     fi
 

@@ -38,6 +38,7 @@ data = {
 }
 
 files = {
+        #"result_file": open("/home/abenbihi/ws/tools/vlb/local_feature_evaluation/res/aachen/anubis/38/Aachen_eval_anubis.txt", "r"),
         "result_file": open(args.result_path, "r"),
 }
 
