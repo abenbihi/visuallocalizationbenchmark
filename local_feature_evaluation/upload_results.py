@@ -1,11 +1,18 @@
 """
 Author: Tomas Jenicek
 """
+import argparse
 import sys
 import requests
 from bs4 import BeautifulSoup
 
-session = "4d3btcg5rfkjv0pn6mk7j4jml473zz9r"
+parser = argparse.ArgumentParser()
+parser.add_argument("--session_id", required=True, type=str)
+parser.add_argument("--method_name", required=True, type=str)
+parser.add_argument("--result_path", required=True, type=str)
+args = parser.parse_args()
+
+session = args.session_id #"4d3btcg5rfkjv0pn6mk7j4jml473zz9r"
 
 resp = requests.get("https://www.visuallocalization.net/submission/",
         headers={"Cookie": f"sessionid={session}"})
@@ -22,7 +29,7 @@ headers = {
 
 data = {
         "csrfmiddlewaretoken": csrf,
-        "method_name": "test",
+        "method_name": args.method_name, #"test",
         "publication_url": "",
         "code_url": "",
         "info_field": "",
@@ -31,7 +38,7 @@ data = {
 }
 
 files = {
-        "result_file": open("/home/abenbihi/ws/tools/vlb/local_feature_evaluation/res/aachen/anubis/38/Aachen_eval_anubis.txt", "r"),
+        "result_file": open(args.result_path, "r"),
 }
 
 resp = requests.post(url, files=files, data=data, headers=headers)
