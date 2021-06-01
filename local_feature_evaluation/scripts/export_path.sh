@@ -21,15 +21,18 @@ fi
 COLMAP_BIN="$WS_DIR"tools/colmap/build/src/exe/colmap
 PYDATA_DIR="$WS_DIR"datasets/pydata/
 
-AACHEN_META_DIR="$WS_DIR"datasets/pydata/aachen/
-AACHEN_IMG_DIR="$WS_DIR"/tools/vlb/local_feature_evaluation/data/aachen-day-night/images/images_upright/
-
-CMU_IMG_DIR="$WS_DIR"datasets/Extended-CMU-Seasons/bgr/
-#CMU_IMG_DIR=/media/abenbihi/My\ Passport/ws/datasets/Extended-CMU-Seasons/bgr/
+ROBOT_DIR="$WS_DIR"/datasets/robotcar_seasons/
 
 CMU_DIR="$WS_DIR"/datasets/Extended-CMU-Seasons/
-
-ROBOT_DIR="$WS_DIR"/datasets/robotcar_seasons/
+CMU_IMG_DIR="$CMU_DIR"slices/ #bgr/
+CMU_FEAT_DIR="$CMU_DIR"features/
 
 #WASABI_DIR="$WS_DIR"/tf/wasabi/
 TOURISM_DIR="$WS_DIR"/datasets/tourism/
+
+VLB_DIR="$WS_DIR"/tools/vlb/local_feature_evaluation/
+
+AACHEN_META_DIR="$WS_DIR"datasets/pydata/aachen/
+AACHEN_IMG_DIR="$WS_DIR"/tools/vlb/local_feature_evaluation/data/aachen-day-night/images/
+AACHEN_FEAT_DIR="$WS_DIR"/tools/vlb/local_feature_evaluation/data/aachen-day-night/features/
+AACHEN_META_DIR="$WS_DIR"/datasets/pydata/aachen/meta/
