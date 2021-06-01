@@ -11,8 +11,13 @@ pair_name=sgvlad
 feat_name=sift
 pair_name=densevlad
 top_k=20
+
 method=sift
 match_trial=9
+
+#method=horus
+#match_trial=0
+
 match_iter=0
 loc_iter=0
 
@@ -72,11 +77,14 @@ echo "$feat_dir"
 
 if [ "$method" = sift ]; then  
   horus_match_path="$WS_DIR"/tools/anubis/res/sift/
-  match_path="$horus_match_path"/"$match_trial"/"$cluster_name"/"$match_iter"/point_matches/
+  #match_path="$horus_match_path"/"$match_trial"/"$cluster_name"/"$match_iter"/point_matches/
+elif [ "$method" = horus ]; then  
+  horus_match_path="$WS_DIR"/tools/anubis/res/localization_cmu/
 else
   echo "Error: unknown method "$method""
   exit 1
 fi
+  match_path="$horus_match_path"/"$match_trial"/"$cluster_name"/"$match_iter"/point_matches/
 
 if ! [ -d "$feat_dir" ]; then
   echo "Error: feature path does not exists: "$feat_dir""
@@ -88,7 +96,7 @@ if ! [ -d "$match_path" ]; then
   exit 1
 fi
 
-colmap_ws=res/cmu/"$feat_name"/"$match_trial"/"$match_iter"/"$loc_iter"/"$slice_id"_c"$cam_id"_"$survey_id"/
+colmap_ws=res/cmu/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/"$slice_id"_c"$cam_id"_"$survey_id"/
 
 if [ 1 -eq 1 ]; then
   if [ -d "$colmap_ws" ]; then
