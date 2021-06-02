@@ -1,6 +1,7 @@
 #!/bin/sh
 
 num_threads=16
+data=robotcar
 
 # colmap run with pre-computed features and local feature matches
 # use the cpp interface to import and match specified features
@@ -13,16 +14,16 @@ pair_name=densevlad
 top_k=20
 
 method=sift
-match_trial=10
+match_trial=11
 
-method=horus
-match_trial=0
+#method=horus
+#match_trial=0
 
 match_iter=0
 loc_iter=0
 
 . ./scripts/export_path.sh
-meta_dir="$PYDATA_DIR"cmu/meta/
+meta_dir="$PYDATA_DIR""$data"/meta/
 
 if [ "$#" -eq 0 ]; then 
   echo "Arguments: "
@@ -45,30 +46,19 @@ cam_id="$2"
 survey_id="$3"
 cluster_name="$slice_id"_"$cam_id"
 
-camera_model=OPENCV
-if [ "$cam_id" -eq 0 ]; then 
-  camera_params=868.993378,866.063001,525.942323,420.042529,-0.399431,0.188924,0.000153,0.000571
-elif [ "$cam_id" -eq 1 ]; then
-  camera_params=873.382641,876.489513,529.324138,397.272397,-0.397066,0.181925,0.000176,-0.000579
-else
-  echo "Error: Wrong cam_id="$cam_id" != {0,1}."
-  exit 1
-fi
-
 if [ "$survey_id" -eq -1 ]; then
   echo "Error: this script only works with query surveys."
   exit 1
 fi
 
-db_dir="$PYDATA_DIR"cmu/meta/surveys/"$slice_id"/"$slice_id"_c"$cam_id"_db/
-q_dir="$PYDATA_DIR"cmu/meta/surveys/"$slice_id"/"$slice_id"_c"$cam_id"_"$survey_id"/
-img_dir="$CMU_IMG_DIR"
-#feat_dir="$WS_DIR"/tf/image-matching-benchmark/dream_cpp/res/sift/cmu/
+db_dir="$PYDATA_DIR""$data"/meta/surveys/"$slice_id"/"$slice_id"_"$cam_id"_db/
+q_dir="$PYDATA_DIR""$data"/meta/surveys/"$slice_id"/"$slice_id"_"$cam_id"_"$survey_id"/
+img_dir="$ROBOT_IMG_DIR"
 
 if [ "$feat_name" = elf ]; then
   feat_dir="$WS_DIR"/tf/elf/res/cmu/elf/0/
 elif [ "$feat_name" = sift ]; then
-  feat_dir="$CMU_FEAT_DIR"
+  feat_dir="$ROBOT_FEAT_DIR"
 else
   echo "Error: unknown feat "$feat_name""
   exit 1
@@ -79,7 +69,7 @@ if [ "$method" = sift ]; then
   horus_match_path="$WS_DIR"/tools/anubis/res/sift/
   #match_path="$horus_match_path"/"$match_trial"/"$cluster_name"/"$match_iter"/point_matches/
 elif [ "$method" = horus ]; then  
-  horus_match_path="$WS_DIR"/tools/anubis/res/localization_cmu/
+  horus_match_path="$WS_DIR"/tools/anubis/res/localization_"$data"/
 else
   echo "Error: unknown method "$method""
   exit 1
@@ -96,7 +86,7 @@ if ! [ -d "$match_path" ]; then
   exit 1
 fi
 
-colmap_ws=res/cmu/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/"$slice_id"_c"$cam_id"_"$survey_id"/
+colmap_ws=res/"$data"/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/"$slice_id"_"$cam_id"_"$survey_id"/
 
 if [ 1 -eq 1 ]; then
   if [ -d "$colmap_ws" ]; then
@@ -149,7 +139,7 @@ if [ 1 -eq 1 ]; then
     echo "Error: no such directory: "$match_path""
     exit 1
   fi
-  python3 rec.py \
+  python3 rec_robotcar.py \
     --colmap_ws "$colmap_ws" \
     --feat_dir "$feat_dir" \
     --match_dir "$match_path" \

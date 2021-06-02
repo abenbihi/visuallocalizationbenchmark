@@ -1,18 +1,23 @@
 #!/bin/sh
 
 # TODO: make this arguments of the loc script
-match_trial=9
+match_trial=10
 match_iter=0
 loc_iter=0
 
+method=sift
+method=horus
 
-for slice_id in 2
+res_dir=res/cmu/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/
+
+for slice_id in 5 #3 4 5
 do
-    for cam_id in 0 #1
+    for cam_id in 1 #1
     do
-        for survey_id in 0 #1 2 3 4 5 6 7 8 9 10
+        for survey_id in 0 1 2 3 4 5 6 7 8 9 10
         do
-            eval_fn=res/cmu/sift/"$match_trial"/"$match_iter"/"$loc_iter"/"$slice_id"_c"$cam_id"_"$survey_id"/Aachen_eval_sift.txt
+          echo "\n\n"$slice_id" "$cam_id" "$survey_id""
+            eval_fn="$res_dir""$slice_id"_c"$cam_id"_"$survey_id"/Aachen_eval_"$method".txt
             if [ -f "$eval_fn" ]; then
                 echo "Evaluation file already exists at "$eval_fn"\n"
                 continue
@@ -23,7 +28,7 @@ do
                 echo "Error when loc on "$slice_id" "$cam_id" "$survey_id""
                 exit 1
             fi
-            break
+          echo "... "$slice_id" "$cam_id" "$survey_id" done"
         done
     done
 done

@@ -73,13 +73,18 @@ def preprocess_reference_model(args):
     """Get the list of db img, the cameras associated to them (and their
     intrinsics) and the img pose c_T_w."""
     print('Preprocessing the reference model...')
-    camera_model = "OPENCV"
-    if args.cam_id == 0:
-        intrinsics = [1024, 768, 868.993378, 866.063001, 525.942323,
-                420.042529, -0.399431, 0.188924, 0.000153, 0.000571]
-    else:
-        intrinsics = [1024, 768, 873.382641, 876.489513, 529.324138,
-                397.272397, -0.397066, 0.181925, 0.000176, -0.000579]
+    #camera_model = "OPENCV"
+    #if args.cam_id == 0:
+    #    intrinsics = [1024, 768, 868.993378, 866.063001, 525.942323,
+    #            420.042529, -0.399431, 0.188924, 0.000153, 0.000571]
+    #else:
+    #    intrinsics = [1024, 768, 873.382641, 876.489513, 529.324138,
+    #            397.272397, -0.397066, 0.181925, 0.000176, -0.000579]
+
+    camera_fn = "%s/prior/cameras.txt"%args.colmap_ws
+    camera_prior = np.loadtxt(camera_fn, dtype=str)
+    camera_model = camera_prior[1]
+    intrinsics = list(camera_prior[2:].astype(np.float32))
 
     meta_fn = "%s/prior/images.txt"%args.colmap_ws
     #print(meta_fn)
@@ -353,7 +358,7 @@ if __name__ == "__main__":
     parser.add_argument('--feat_dir', type=str)
     parser.add_argument('--match_dir', type=str)
     parser.add_argument('--slice_id', type=int)
-    parser.add_argument('--cam_id', type=int)
+    parser.add_argument('--cam_id', type=str)
     parser.add_argument('--survey_id', type=int)
     parser.add_argument('--num_threads', type=int, required=True)
     parser.add_argument('--format', type=str, required=True)
@@ -380,18 +385,18 @@ if __name__ == "__main__":
     paths.feature_path = args.feat_dir
     paths.match_path = args.match_dir
     paths.database_path = "%s/database.db"%args.colmap_ws
-    #paths.empty_model_path = os.path.join(args.res_path, 'sparse-%s-empty' % args.method_name)
-    #paths.database_model_path = os.path.join(args.res_path, 'sparse-%s-database' % args.method_name)
-    #paths.final_model_path = os.path.join(args.res_path, 'sparse-%s-final' % args.method_name)
-    #paths.final_txt_model_path = os.path.join(args.res_path, 'sparse-%s-final-txt' % args.method_name)
-    #paths.prediction_path = os.path.join(args.res_path, 'Aachen_eval_[%s].txt' % args.method_name)
-    #print(paths.image_path)
-    #
-    ## Create a copy of the dummy database.
-    #if os.path.exists(paths.database_path):
-    #    raise FileExistsError('The database file already exists for method %s.' % args.method_name)
-    #shutil.copyfile(paths.dummy_database_path, paths.database_path)
-    #
+    ##paths.empty_model_path = os.path.join(args.res_path, 'sparse-%s-empty' % args.method_name)
+    ##paths.database_model_path = os.path.join(args.res_path, 'sparse-%s-database' % args.method_name)
+    ##paths.final_model_path = os.path.join(args.res_path, 'sparse-%s-final' % args.method_name)
+    ##paths.final_txt_model_path = os.path.join(args.res_path, 'sparse-%s-final-txt' % args.method_name)
+    ##paths.prediction_path = os.path.join(args.res_path, 'Aachen_eval_[%s].txt' % args.method_name)
+    ##print(paths.image_path)
+    ##
+    ### Create a copy of the dummy database.
+    ##if os.path.exists(paths.database_path):
+    ##    raise FileExistsError('The database file already exists for method %s.' % args.method_name)
+    ##shutil.copyfile(paths.dummy_database_path, paths.database_path)
+    ##
     
     # create empty database
 
@@ -405,7 +410,7 @@ if __name__ == "__main__":
     import_features(images, paths, args)
     match_features(images, paths, args)
 
-    #geometric_verification(paths, args)
-    #reconstruct(paths, args)
-    #register_queries(paths, args)
-    #recover_query_poses(paths, args)
+    ###geometric_verification(paths, args)
+    ###reconstruct(paths, args)
+    ###register_queries(paths, args)
+    ###recover_query_poses(paths, args)
