@@ -217,16 +217,16 @@ fi
 
 
 if [ 1 -eq 1 ]; then
-  #echo "Write estimated query pose to file."
-  #python3 recover_query_poses.py \
-  #  --gt_pose_fn "$q_dir"/pose.txt \
-  #  --colmap_pose "$colmap_ws"final_txt/images.txt \
-  #  --est_pose_fn "$colmap_ws"/Aachen_eval_"$method"_fullname.txt
-  #
-  #if [ "$?" -ne 0 ]; then
-  #  echo "Error in recover_query_poses"
-  #  exit 1
-  #fi
+  echo "Write estimated query pose to file."
+  python3 recover_query_poses.py \
+    --gt_pose_fn "$q_dir"/pose.txt \
+    --colmap_pose "$colmap_ws"final_txt/images.txt \
+    --est_pose_fn "$colmap_ws"/Aachen_eval_"$method"_fullname.txt
+  
+  if [ "$?" -ne 0 ]; then
+    echo "Error in recover_query_poses"
+    exit 1
+  fi
 
   # format the evaluation file (remove condition)
   #rm "$colmap_ws"/Aachen_eval_"$method".txt
