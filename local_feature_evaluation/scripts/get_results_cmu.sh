@@ -22,9 +22,13 @@ fi
 dst="$address":"$remote_ws"
 
 data=cmu
-method=sift
 
+method=sift
 match_trial=10
+
+method=horus
+match_trial=0
+
 match_iter=0
 loc_iter=0
       

@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 parser = argparse.ArgumentParser()
 parser.add_argument("--session_id", required=True, type=str)
 parser.add_argument("--method_name", required=True, type=str)
+parser.add_argument("--dataset", required=True, type=str)
 parser.add_argument("--result_path", required=True, type=str)
 args = parser.parse_args()
 
@@ -33,7 +34,7 @@ data = {
         "publication_url": "",
         "code_url": "",
         "info_field": "",
-        "dataset": "aachen",
+        "dataset": args.dataset, #"aachen",
         "workshop_submission": "default",
 }
 

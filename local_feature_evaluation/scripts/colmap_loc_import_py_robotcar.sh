@@ -1,6 +1,7 @@
 #!/bin/sh
 
-num_threads=16
+num_threads=8
+data=robotcar
 
 # colmap run with pre-computed features and local feature matches
 # use the cpp interface to import and match specified features
@@ -13,16 +14,16 @@ pair_name=densevlad
 top_k=20
 
 method=sift
-match_trial=10
+match_trial=11
 
-method=horus
-match_trial=0
+#method=horus
+#match_trial=0
 
 match_iter=0
 loc_iter=0
 
 . ./scripts/export_path.sh
-meta_dir="$PYDATA_DIR"cmu/meta/
+meta_dir="$PYDATA_DIR""$data"/meta/
 
 if [ "$#" -eq 0 ]; then 
   echo "Arguments: "
@@ -45,30 +46,19 @@ cam_id="$2"
 survey_id="$3"
 cluster_name="$slice_id"_"$cam_id"
 
-camera_model=OPENCV
-if [ "$cam_id" -eq 0 ]; then 
-  camera_params=868.993378,866.063001,525.942323,420.042529,-0.399431,0.188924,0.000153,0.000571
-elif [ "$cam_id" -eq 1 ]; then
-  camera_params=873.382641,876.489513,529.324138,397.272397,-0.397066,0.181925,0.000176,-0.000579
-else
-  echo "Error: Wrong cam_id="$cam_id" != {0,1}."
-  exit 1
-fi
-
 if [ "$survey_id" -eq -1 ]; then
   echo "Error: this script only works with query surveys."
   exit 1
 fi
 
-db_dir="$PYDATA_DIR"cmu/meta/surveys/"$slice_id"/"$slice_id"_c"$cam_id"_db/
-q_dir="$PYDATA_DIR"cmu/meta/surveys/"$slice_id"/"$slice_id"_c"$cam_id"_"$survey_id"/
-img_dir="$CMU_IMG_DIR"
-#feat_dir="$WS_DIR"/tf/image-matching-benchmark/dream_cpp/res/sift/cmu/
+db_dir="$PYDATA_DIR""$data"/meta/surveys/"$slice_id"/"$slice_id"_"$cam_id"_db/
+q_dir="$PYDATA_DIR""$data"/meta/surveys/"$slice_id"/"$slice_id"_"$cam_id"_"$survey_id"/
+img_dir="$ROBOT_IMG_DIR"
 
 if [ "$feat_name" = elf ]; then
   feat_dir="$WS_DIR"/tf/elf/res/cmu/elf/0/
 elif [ "$feat_name" = sift ]; then
-  feat_dir="$CMU_FEAT_DIR"
+  feat_dir="$ROBOT_FEAT_DIR"
 else
   echo "Error: unknown feat "$feat_name""
   exit 1
@@ -79,7 +69,7 @@ if [ "$method" = sift ]; then
   horus_match_path="$WS_DIR"/tools/anubis/res/sift/
   #match_path="$horus_match_path"/"$match_trial"/"$cluster_name"/"$match_iter"/point_matches/
 elif [ "$method" = horus ]; then  
-  horus_match_path="$WS_DIR"/tools/anubis/res/localization_cmu/
+  horus_match_path="$WS_DIR"/tools/anubis/res/localization_"$data"/
 else
   echo "Error: unknown method "$method""
   exit 1
@@ -96,9 +86,9 @@ if ! [ -d "$match_path" ]; then
   exit 1
 fi
 
-colmap_ws=res/cmu/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/"$slice_id"_c"$cam_id"_"$survey_id"/
+colmap_ws=res/"$data"/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/"$slice_id"_"$cam_id"_"$survey_id"/
 
-if [ 1 -eq 1 ]; then
+if [ 0 -eq 1 ]; then
   if [ -d "$colmap_ws" ]; then
     while true; do
       read -p ""$colmap_ws" already exists. Do you want to overwrite it (y/n) ?" yn
@@ -144,12 +134,12 @@ if [ 1 -eq 1 ]; then
 fi
 
 # TODO: When does the undistortion happen ?
-if [ 1 -eq 1 ]; then
+if [ 0 -eq 1 ]; then
   if ! [ -d "$match_path" ]; then
     echo "Error: no such directory: "$match_path""
     exit 1
   fi
-  python3 rec.py \
+  python3 rec_robotcar.py \
     --colmap_ws "$colmap_ws" \
     --feat_dir "$feat_dir" \
     --match_dir "$match_path" \
@@ -167,7 +157,7 @@ fi
 
 
 # specify img to match
-if [ 1 -eq 1 ]; then
+if [ 0 -eq 1 ]; then
   "$COLMAP_BIN" matches_importer \
     --database_path "$colmap_ws"/database.db \
     --match_list_path "$colmap_ws"/image_pairs_to_match.txt \
@@ -181,7 +171,7 @@ if [ 1 -eq 1 ]; then
 fi
 
 # triangulate the database observations in the 3D model at fixed intrinsics
-if [ 1 -eq 1 ]; then
+if [ 0 -eq 1 ]; then
   #echo "img_dir: "$img_dir""
   "$COLMAP_BIN" point_triangulator \
     --database_path "$colmap_ws"/database.db \
@@ -197,7 +187,7 @@ if [ 1 -eq 1 ]; then
 fi
 
 # Register the query images.
-if [ 1 -eq 1 ]; then
+if [ 0 -eq 1 ]; then
   "$COLMAP_BIN" image_registrator \
     --database_path "$colmap_ws"/database.db \
     --input_path "$colmap_ws"/sparse/ \
@@ -214,7 +204,7 @@ if [ 1 -eq 1 ]; then
 fi
 
 # Convert the model to TXT.
-if [ 1 -eq 1 ]; then
+if [ 0 -eq 1 ]; then
   "$COLMAP_BIN" model_converter \
     --input_path "$colmap_ws"final \
     --output_path "$colmap_ws"final_txt \
@@ -227,22 +217,22 @@ fi
 
 
 if [ 1 -eq 1 ]; then
-  echo "Write estimated query pose to file."
-  python3 recover_query_poses.py \
-    --gt_pose_fn "$q_dir"/pose.txt \
-    --colmap_pose "$colmap_ws"final_txt/images.txt \
-    --est_pose_fn "$colmap_ws"/Aachen_eval_"$method"_fullname.txt
-  
-  if [ "$?" -ne 0 ]; then
-    echo "Error in recover_query_poses"
-    exit 1
-  fi
+  #echo "Write estimated query pose to file."
+  #python3 recover_query_poses.py \
+  #  --gt_pose_fn "$q_dir"/pose.txt \
+  #  --colmap_pose "$colmap_ws"final_txt/images.txt \
+  #  --est_pose_fn "$colmap_ws"/Aachen_eval_"$method"_fullname.txt
+  #
+  #if [ "$?" -ne 0 ]; then
+  #  echo "Error in recover_query_poses"
+  #  exit 1
+  #fi
 
-  # format the evaluation file (remove slice<i>/db-query)
+  # format the evaluation file (remove condition)
+  #rm "$colmap_ws"/Aachen_eval_"$method".txt
   while read -r line
   do
-    fn="$(echo "$line" | cut -d'/' -f3)"
-    res="$(echo "$line" | cut -d' ' -f3-8)"
+    fn="$(echo "$line" | cut -d'/' -f2-)"
     echo "$fn" >> "$colmap_ws"/Aachen_eval_"$method".txt
   done < "$colmap_ws"/Aachen_eval_"$method"_fullname.txt
 fi

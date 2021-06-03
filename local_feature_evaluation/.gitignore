@@ -1,2 +1,4 @@
 res/cmu/elf/slice*/
 res/cmu/elf/slice*gt.txt
+data/
+__pycache__
