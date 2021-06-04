@@ -88,7 +88,7 @@ fi
 
 colmap_ws=res/"$data"/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/"$slice_id"_"$cam_id"_"$survey_id"/
 
-if [ 0 -eq 1 ]; then
+if [ 1 -eq 1 ]; then
   if [ -d "$colmap_ws" ]; then
     while true; do
       read -p ""$colmap_ws" already exists. Do you want to overwrite it (y/n) ?" yn
@@ -134,7 +134,7 @@ if [ 0 -eq 1 ]; then
 fi
 
 # TODO: When does the undistortion happen ?
-if [ 0 -eq 1 ]; then
+if [ 1 -eq 1 ]; then
   if ! [ -d "$match_path" ]; then
     echo "Error: no such directory: "$match_path""
     exit 1
@@ -216,7 +216,7 @@ if [ 0 -eq 1 ]; then
 fi
 
 
-if [ 1 -eq 1 ]; then
+if [ 0 -eq 1 ]; then
   echo "Write estimated query pose to file."
   python3 recover_query_poses.py \
     --gt_pose_fn "$q_dir"/pose.txt \

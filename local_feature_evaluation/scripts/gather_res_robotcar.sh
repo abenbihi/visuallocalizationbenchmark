@@ -25,6 +25,7 @@ if [ 1 -eq 1 ]; then
   do
     slice_id="$((slice_id+1))"
 
+    # no queries
     if [ "$slice_id" = 1 ]; then
       continue
     fi
@@ -41,6 +42,7 @@ if [ 1 -eq 1 ]; then
       continue
     fi
 
+    # empty ones for this xp
     if [ "$slice_id" = 40 ]; then
       continue
     fi
