@@ -40,6 +40,13 @@ def recover_database_images_and_ids(args):
     """
     images = {}
     cameras = {}
+    
+    # WARNING !!! This assumes one camera per model !!!
+    camera_fn = "%s/prior/cameras.txt"%args.colmap_ws
+    camera_prior = np.loadtxt(camera_fn, dtype=str)
+    cam_id = camera_prior[0]
+    print("cam_id: %s"%cam_id)
+
     # load db
     meta_fn = "%s/prior/images.txt"%args.colmap_ws
     meta = np.loadtxt(meta_fn, dtype=str)
@@ -49,8 +56,11 @@ def recover_database_images_and_ids(args):
     for i, image_name in enumerate(fn_v):
         #if i%10==0:
         #    print("db: %d/%d %s"%(i, fn_v.shape[0], image_name))
+        print("%d/%d %s image_id: %d\tcam_id: %d"%(
+            i, fn_v.shape[0], image_name, image_id_v[i], cam_id_v[i]))
         images[image_name] = image_id_v[i]
-        cameras[image_name] = 1 #cam_id_v[i]
+        cameras[image_name] = cam_id_v[i]
+    #print(image_id_v)
 
     img_id = np.max(image_id_v) + 1
     
@@ -61,7 +71,7 @@ def recover_database_images_and_ids(args):
         #if i%1==0:
         #    print("q: %d/%d %s"%(img_id+i, img_id+meta.shape[0], image_name))
         images[image_name] = img_id + i
-        cameras[image_name] = 1
+        cameras[image_name] = cam_id
     
     #for k, v in images.items():
     #    print(k,v)
@@ -404,11 +414,11 @@ if __name__ == "__main__":
     camera_parameters = preprocess_reference_model(args)
     images, cameras = recover_database_images_and_ids(args)
 
-    # init empty database
-    init_db(paths, images, cameras, args)
+    ## init empty database
+    #init_db(paths, images, cameras, args)
 
-    import_features(images, paths, args)
-    match_features(images, paths, args)
+    #import_features(images, paths, args)
+    #match_features(images, paths, args)
 
     ###geometric_verification(paths, args)
     ###reconstruct(paths, args)
