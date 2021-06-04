@@ -45,7 +45,7 @@ def recover_database_images_and_ids(args):
     camera_fn = "%s/prior/cameras.txt"%args.colmap_ws
     camera_prior = np.loadtxt(camera_fn, dtype=str)
     cam_id = camera_prior[0]
-    print("cam_id: %s"%cam_id)
+    #print("cam_id: %s"%cam_id)
 
     # load db
     meta_fn = "%s/prior/images.txt"%args.colmap_ws
@@ -56,8 +56,8 @@ def recover_database_images_and_ids(args):
     for i, image_name in enumerate(fn_v):
         #if i%10==0:
         #    print("db: %d/%d %s"%(i, fn_v.shape[0], image_name))
-        print("%d/%d %s image_id: %d\tcam_id: %d"%(
-            i, fn_v.shape[0], image_name, image_id_v[i], cam_id_v[i]))
+        #print("%d/%d %s image_id: %d\tcam_id: %d"%(
+        #    i, fn_v.shape[0], image_name, image_id_v[i], cam_id_v[i]))
         images[image_name] = image_id_v[i]
         cameras[image_name] = cam_id_v[i]
     #print(image_id_v)
@@ -122,26 +122,32 @@ def preprocess_reference_model(args):
 
 def init_db(paths, images, cameras, args):
     """ """
-    model = "OPENCV"
-    if args.cam_id == 0:
-        intrinsics = [868.993378, 866.063001, 525.942323,
-                420.042529, -0.399431, 0.188924, 0.000153,
-                0.000571]
-    else:
-        intrinsics = [873.382641, 876.489513, 529.324138,
-                397.272397, -0.397066, 0.181925, 0.000176,
-                -0.000579]
+    camera_fn = "%s/prior/cameras.txt"%args.colmap_ws
+    camera_prior = np.loadtxt(camera_fn, dtype=str)
+    cam_id = camera_prior[0]
+    model = camera_prior[1]
+    #cam_id = args.cam_id
+    intrinsics = list(camera_prior[4:])
+
+    #model = "OPENCV"
+    #if args.cam_id == 0:
+    #    intrinsics = [868.993378, 866.063001, 525.942323,
+    #            420.042529, -0.399431, 0.188924, 0.000153,
+    #            0.000571]
+    #else:
+    #    intrinsics = [873.382641, 876.489513, 529.324138,
+    #            397.272397, -0.397066, 0.181925, 0.000176,
+    #            -0.000579]
     intrinsics = np.array(intrinsics).astype(np.float64)
     intrinsics = intrinsics.tostring()
-    H = 768
-    W = 1024
+    W = camera_prior[2]
+    H = camera_prior[3]
 
     connection = sqlite3.connect(paths.database_path)
     cursor = connection.cursor()
     
     # insert camera
-    cam_id = args.cam_id
-    modelId = 4
+    modelId = 2
     str_ = "INSERT INTO cameras(camera_id, model, width, height, params, prior_focal_length)"
     str_ += " VALUES(?, ?, ?, ?, ?, ?);"
     cursor.execute(str_, ("1", str(modelId), str(W), str(H), intrinsics, "0"))
@@ -153,8 +159,9 @@ def init_db(paths, images, cameras, args):
         str_ = ("INSERT INTO images(image_id, name, camera_id, prior_qw, prior_qx, "
                 "prior_qy, prior_qz, prior_tx, prior_ty, prior_tz) VALUES(?, ?, ?, ?, ?, "
                 "?, ?, ?, ?, ?);")
-        cursor.execute(str_, (str(image_id), image_name, "1", "1.0", "0.0", "0.0", "0.0",
-            "0.0", "0.0", "0.0"))
+        cursor.execute(str_, (str(image_id), image_name, cam_id,
+            "1.0", "0.0", "0.0", "0.0", # q
+            "0.0", "0.0", "0.0")) # t
         connection.commit()
 
     # Close the connection to the database.
@@ -415,10 +422,10 @@ if __name__ == "__main__":
     images, cameras = recover_database_images_and_ids(args)
 
     ## init empty database
-    #init_db(paths, images, cameras, args)
+    init_db(paths, images, cameras, args)
 
-    #import_features(images, paths, args)
-    #match_features(images, paths, args)
+    import_features(images, paths, args)
+    match_features(images, paths, args)
 
     ###geometric_verification(paths, args)
     ###reconstruct(paths, args)

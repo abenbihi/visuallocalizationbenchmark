@@ -157,7 +157,7 @@ fi
 
 
 # specify img to match
-if [ 0 -eq 1 ]; then
+if [ 1 -eq 1 ]; then
   "$COLMAP_BIN" matches_importer \
     --database_path "$colmap_ws"/database.db \
     --match_list_path "$colmap_ws"/image_pairs_to_match.txt \
@@ -171,7 +171,7 @@ if [ 0 -eq 1 ]; then
 fi
 
 # triangulate the database observations in the 3D model at fixed intrinsics
-if [ 0 -eq 1 ]; then
+if [ 1 -eq 1 ]; then
   #echo "img_dir: "$img_dir""
   "$COLMAP_BIN" point_triangulator \
     --database_path "$colmap_ws"/database.db \
@@ -187,7 +187,7 @@ if [ 0 -eq 1 ]; then
 fi
 
 # Register the query images.
-if [ 0 -eq 1 ]; then
+if [ 1 -eq 1 ]; then
   "$COLMAP_BIN" image_registrator \
     --database_path "$colmap_ws"/database.db \
     --input_path "$colmap_ws"/sparse/ \
@@ -204,7 +204,7 @@ if [ 0 -eq 1 ]; then
 fi
 
 # Convert the model to TXT.
-if [ 0 -eq 1 ]; then
+if [ 1 -eq 1 ]; then
   "$COLMAP_BIN" model_converter \
     --input_path "$colmap_ws"final \
     --output_path "$colmap_ws"final_txt \
@@ -216,7 +216,7 @@ if [ 0 -eq 1 ]; then
 fi
 
 
-if [ 0 -eq 1 ]; then
+if [ 1 -eq 1 ]; then
   echo "Write estimated query pose to file."
   python3 recover_query_poses.py \
     --gt_pose_fn "$q_dir"/pose.txt \

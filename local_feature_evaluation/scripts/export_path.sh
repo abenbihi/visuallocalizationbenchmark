@@ -1,7 +1,7 @@
 #!/bin/sh
 # TODO: specify your path here
 
-MACHINE=6
+MACHINE=0
 if [ "$MACHINE" -eq 0 ]; then
   WS_DIR=/home/abenbihi/ws/
   COLMAP_BIN="$WS_DIR"tools/colmap/build/src/exe/colmap
