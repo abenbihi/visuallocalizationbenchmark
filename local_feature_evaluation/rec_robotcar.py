@@ -45,7 +45,7 @@ def recover_database_images_and_ids(args):
     camera_fn = "%s/prior/cameras.txt"%args.colmap_ws
     camera_prior = np.loadtxt(camera_fn, dtype=str)
     cam_id = camera_prior[0]
-    #print("cam_id: %s"%cam_id)
+    print("cam_id: %s"%cam_id)
 
     # load db
     meta_fn = "%s/prior/images.txt"%args.colmap_ws
@@ -83,18 +83,12 @@ def preprocess_reference_model(args):
     """Get the list of db img, the cameras associated to them (and their
     intrinsics) and the img pose c_T_w."""
     print('Preprocessing the reference model...')
-    #camera_model = "OPENCV"
-    #if args.cam_id == 0:
-    #    intrinsics = [1024, 768, 868.993378, 866.063001, 525.942323,
-    #            420.042529, -0.399431, 0.188924, 0.000153, 0.000571]
-    #else:
-    #    intrinsics = [1024, 768, 873.382641, 876.489513, 529.324138,
-    #            397.272397, -0.397066, 0.181925, 0.000176, -0.000579]
 
     camera_fn = "%s/prior/cameras.txt"%args.colmap_ws
     camera_prior = np.loadtxt(camera_fn, dtype=str)
     camera_model = camera_prior[1]
     intrinsics = list(camera_prior[2:].astype(np.float32))
+    print(camera_model, intrinsics)
 
     meta_fn = "%s/prior/images.txt"%args.colmap_ws
     #print(meta_fn)
@@ -150,7 +144,7 @@ def init_db(paths, images, cameras, args):
     modelId = 2
     str_ = "INSERT INTO cameras(camera_id, model, width, height, params, prior_focal_length)"
     str_ += " VALUES(?, ?, ?, ?, ?, ?);"
-    cursor.execute(str_, ("1", str(modelId), str(W), str(H), intrinsics, "0"))
+    cursor.execute(str_, (cam_id, str(modelId), str(W), str(H), intrinsics, "0"))
     connection.commit()
 
     # insert images
@@ -167,8 +161,6 @@ def init_db(paths, images, cameras, args):
     # Close the connection to the database.
     cursor.close()
     connection.close()
-
-
 
 def import_features(images, paths, args):
     # Connect to the database.
@@ -237,7 +229,7 @@ def match_features(images, paths, args):
  
         if args.format == "adalam":
             matches = np.loadtxt(match_fn)
-        elif (args.format == "horus" or args.format == "anubi" or
+        elif (args.format == "horus" or args.format == "anubis" or
                 args.format=="sift"):
             matches = np.loadtxt(match_fn, skiprows=1)
         else:
@@ -253,6 +245,40 @@ def match_features(images, paths, args):
             matches = matches.reshape((-1,2))
             matches = matches.astype(np.uint32)
         
+        ## uncomment if you have issues with estimateUncalibrated. It means that
+        ## the indices are your matches are fucked up and do not correspond to
+        ## your feature indices. Good luck with that, because this is a very
+        ## annoying bug.
+        #features_path1 = "%s/%s.txt"%(paths.feature_path, image_name1)
+        #features_path2 = "%s/%s.txt"%(paths.feature_path, image_name2)
+
+        #if not os.path.exists(features_path1):
+        #    raise ValueError("No such feature file: %s"%features_path1)
+        #else:
+        #    features1 = np.loadtxt(features_path1, skiprows=1)
+        #    keypoints1 = features1[:,:4].astype(np.float32)
+        #if not os.path.exists(features_path2):
+        #    raise ValueError("No such feature file: %s"%features_path1)
+        #else:
+        #    features2 = np.loadtxt(features_path2, skiprows=1)
+        #    keypoints2 = features2[:,:4].astype(np.float32)
+
+        #match_max1 = np.max(matches[:,0])
+        #match_max2 = np.max(matches[:,1])
+        #image_id1, image_id2 = images[image_name1], images[image_name2]
+        #if (match_max1 >= features1.shape[0]):
+        #    print("fail1: %s %s %d %d"%(image_name1, image_name2, image_id1,
+        #        image_id2))
+        #    print("match_max1 >= # features1: %d >= %s"%(match_max1,
+        #        features1.shape[0]))
+        #if (match_max2 >= features2.shape[0]):
+        #    print("fail2: %s %s %d %d"%(image_name1, image_name2, image_id1,
+        #        image_id2))
+        #    print("match_max2 >= # features2: %d >= %s"%(match_max2,
+        #        features2.shape[0]))
+        #assert(match_max1 < features1.shape[0])
+        #assert(match_max2 < features2.shape[0])
+
         count += 1
 
         ##print(image_name1, image_name2)

@@ -37,8 +37,8 @@ res_dir=res/"$data"/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/
 if [ 1 -eq 1 ]; then
   survey_id=0
 
-  slice_id=0
-  while [ "$slice_id" -le 48 ];
+  slice_id=16
+  while [ "$slice_id" -le 16 ];
   do
     slice_id="$((slice_id+1))"
     if [ "$slice_id" = 1 ]; then
