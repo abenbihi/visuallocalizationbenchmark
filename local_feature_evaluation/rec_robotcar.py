@@ -207,6 +207,8 @@ def match_features(images, paths, args):
     print('Matching...')
     
     img_pairs_fn = "%s/image_pairs_to_match.txt"%args.colmap_ws
+    #print(img_pairs_fn)
+    #exit(1)
     with open(img_pairs_fn, 'r') as f:
         raw_pairs = f.readlines()
     
@@ -222,28 +224,31 @@ def match_features(images, paths, args):
  
         match_fn = "%s/%s_%s.txt"%(paths.match_path, fn1.replace("/","-"),
                 fn2.replace("/","-"))
+        #print(match_fn)
         if not os.path.exists(match_fn):
-           print("No such file: %s"%match_fn)
-           false_count += 1
-           exit(1)
- 
-        if args.format == "adalam":
-            matches = np.loadtxt(match_fn)
-        elif (args.format == "horus" or args.format == "anubis" or
-                args.format=="sift"):
-            matches = np.loadtxt(match_fn, skiprows=1)
-        else:
-            raise ValueError("Unknwon format: %s"%args.format)
- 
-        if matches.shape[0] == 0: # bm could not match keypoints
+            print("No such file: %s"%match_fn)
+            print(fn1, fn2)
             matches = np.array([[0,0],[1,1]]).astype(np.uint32) # random matches
-            empty_pairs.append([image_name1, image_name2])
-            empty_count += 1
+            false_count += 1
+            exit(1)
         else:
             if args.format == "adalam":
-                matches = matches[:,:2].astype(np.uint32) # adalam
-            matches = matches.reshape((-1,2))
-            matches = matches.astype(np.uint32)
+                matches = np.loadtxt(match_fn)
+            elif (args.format == "horus" or args.format == "anubis" or
+                    args.format=="sift"):
+                matches = np.loadtxt(match_fn, skiprows=1)
+            else:
+                raise ValueError("Unknwon format: %s"%args.format)
+ 
+            if matches.shape[0] == 0: # bm could not match keypoints
+                matches = np.array([[0,0],[1,1]]).astype(np.uint32) # random matches
+                empty_pairs.append([image_name1, image_name2])
+                empty_count += 1
+            else:
+                if args.format == "adalam":
+                    matches = matches[:,:2].astype(np.uint32) # adalam
+                matches = matches.reshape((-1,2))
+                matches = matches.astype(np.uint32)
         
         ## uncomment if you have issues with estimateUncalibrated. It means that
         ## the indices are your matches are fucked up and do not correspond to
