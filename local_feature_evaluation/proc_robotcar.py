@@ -1,0 +1,90 @@
+import os
+
+import numpy as np
+from pyquaternion import Quaternion
+
+WS_DIR = "/home/abenbihi/ws/"
+ROBOT_DIR = "%s/datasets/robotcar_seasons/"%WS_DIR
+
+def left2rear():
+    """Convert the pose evaluation file for the left cameras to one for the
+    rear cameras using the provided extrinsics. Let's see if I got better at
+    geometry :)."""
+    
+    extrinsics_dir = "%s/extrinsics/"%ROBOT_DIR
+    car_T_c_left = np.loadtxt("%s/left_extrinsics.txt"%extrinsics_dir,
+            delimiter=",")
+    car_T_c_rear = np.loadtxt("%s/rear_extrinsics.txt"%extrinsics_dir,
+            delimiter=",")
+
+    #w_T_c_right = np.loadtxt("%s/right_extrinsics.txt"%extrinsics_dir)
+
+    # Input: pose of the left cameras in colmap format i.e. c_left_P_w
+    # Transformation: c_rear_T_c_left
+    # Output: pose of the rear cameras in colmap format i.e. c_rear_P_w
+
+    # Prepare transformation
+    #c_rear_T_w = np.linalg.inv(w_T_c_rear)
+    c_rear_T_car = np.eye(4)
+    c_rear_T_car[:3,:3] = np.transpose(car_T_c_rear[:3,:3])
+    c_rear_T_car[:3,3] = -np.dot(c_rear_T_car[:3,:3], car_T_c_rear[:3,3])
+    #print(c_rear_T_w)
+    #print(np.linalg.inv(w_T_c_rear))
+    print(np.sum(c_rear_T_car - np.linalg.inv(car_T_c_rear)))
+    assert(np.sum(c_rear_T_car - np.linalg.inv(car_T_c_rear)) < 1e-3)
+    print(np.dot(c_rear_T_car, car_T_c_rear))
+
+    c_rear_T_c_left = np.dot(c_rear_T_car, car_T_c_left)
+    #R = c_rear_T_c_left[:3,:3]
+    #print(np.dot(np.transpose(R), R))
+    #exit(0)
+    #print(np.dot(c_rear_T_w, w_T_c_rear))
+
+    match_trial = 2
+    match_iter = 0
+    loc_iter = 0
+    loc_id = 17
+    cam_id = "left"
+    method = "horus"
+
+    left_poses = np.loadtxt("res/robotcar/%s/%d/%d/%d/%d_%s_0/Aachen_eval_%s.txt"%(
+        method, match_trial, match_iter, loc_iter, loc_id, cam_id, method), dtype=str)
+
+    new_poses = []
+    for l in left_poses:
+        img_fn = l[0]
+        print(img_fn)
+        qw, qx, qy, qz, tx, ty, tz = [float(ll) for ll in l[1:]] 
+        R = Quaternion(np.array([qw, qx, qy, qz])).rotation_matrix # cam -> world
+        #print(np.dot(np.transpose(R), R))
+        t = np.array([tx, ty, tz]) # cam -> world
+        c_left_T_w = np.eye(4)
+        c_left_T_w[:3,:3] = R
+        c_left_T_w[:3,3] = t
+
+        c_rear_T_w = np.dot(c_rear_T_c_left, c_left_T_w)
+        #R = c_rear_T_w[:3,:3]
+        #print("\nnp.dot(R, np.transpose(R))")
+        #print(np.dot(R, np.transpose(R)))
+        #print(c_rear_T_w)
+        #print(c_rear_T_w)
+        qw, qx, qy, qz = Quaternion(matrix=c_rear_T_w[:3,:3], atol=1e-5)
+        tx, ty, tz = c_rear_T_w[:3,3]
+        
+        new_img_fn = img_fn.replace("left", "rear")
+        new_poses.append([
+            "%s %.6f %.6f %.6f %.6f %.3f %.3f %.3f"%(
+                new_img_fn, qw, qx, qy, qz, tx, ty, tz)])
+        
+    new_cam_id = "rear"
+    new_dir = "res/robotcar/%s/%d/%d/%d/%d_%s_0/"%(
+        method, match_trial, match_iter, loc_iter, loc_id, new_cam_id)
+    if not os.path.exists(new_dir):
+        os.makedirs(new_dir)
+
+    new_fn = "%s/Aachen_eval_%s.txt"%(new_dir, method)
+    np.savetxt(new_fn, np.array(new_poses), fmt="%s")
+
+
+if __name__=="__main__":
+    left2rear()
