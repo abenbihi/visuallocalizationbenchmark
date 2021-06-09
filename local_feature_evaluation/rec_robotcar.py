@@ -56,8 +56,8 @@ def recover_database_images_and_ids(args):
     for i, image_name in enumerate(fn_v):
         #if i%10==0:
         #    print("db: %d/%d %s"%(i, fn_v.shape[0], image_name))
-        print("%d/%d %s image_id: %d\tcam_id: %d"%(
-            i, fn_v.shape[0], image_name, image_id_v[i], cam_id_v[i]))
+        #print("%d/%d %s image_id: %d\tcam_id: %d"%(
+        #    i, fn_v.shape[0], image_name, image_id_v[i], cam_id_v[i]))
         images[image_name] = image_id_v[i]
         cameras[image_name] = cam_id_v[i]
     #print(image_id_v)
@@ -83,18 +83,12 @@ def preprocess_reference_model(args):
     """Get the list of db img, the cameras associated to them (and their
     intrinsics) and the img pose c_T_w."""
     print('Preprocessing the reference model...')
-    #camera_model = "OPENCV"
-    #if args.cam_id == 0:
-    #    intrinsics = [1024, 768, 868.993378, 866.063001, 525.942323,
-    #            420.042529, -0.399431, 0.188924, 0.000153, 0.000571]
-    #else:
-    #    intrinsics = [1024, 768, 873.382641, 876.489513, 529.324138,
-    #            397.272397, -0.397066, 0.181925, 0.000176, -0.000579]
 
     camera_fn = "%s/prior/cameras.txt"%args.colmap_ws
     camera_prior = np.loadtxt(camera_fn, dtype=str)
     camera_model = camera_prior[1]
     intrinsics = list(camera_prior[2:].astype(np.float32))
+    print(camera_model, intrinsics)
 
     meta_fn = "%s/prior/images.txt"%args.colmap_ws
     #print(meta_fn)
@@ -122,29 +116,35 @@ def preprocess_reference_model(args):
 
 def init_db(paths, images, cameras, args):
     """ """
-    model = "OPENCV"
-    if args.cam_id == 0:
-        intrinsics = [868.993378, 866.063001, 525.942323,
-                420.042529, -0.399431, 0.188924, 0.000153,
-                0.000571]
-    else:
-        intrinsics = [873.382641, 876.489513, 529.324138,
-                397.272397, -0.397066, 0.181925, 0.000176,
-                -0.000579]
+    camera_fn = "%s/prior/cameras.txt"%args.colmap_ws
+    camera_prior = np.loadtxt(camera_fn, dtype=str)
+    cam_id = camera_prior[0]
+    model = camera_prior[1]
+    #cam_id = args.cam_id
+    intrinsics = list(camera_prior[4:])
+
+    #model = "OPENCV"
+    #if args.cam_id == 0:
+    #    intrinsics = [868.993378, 866.063001, 525.942323,
+    #            420.042529, -0.399431, 0.188924, 0.000153,
+    #            0.000571]
+    #else:
+    #    intrinsics = [873.382641, 876.489513, 529.324138,
+    #            397.272397, -0.397066, 0.181925, 0.000176,
+    #            -0.000579]
     intrinsics = np.array(intrinsics).astype(np.float64)
     intrinsics = intrinsics.tostring()
-    H = 768
-    W = 1024
+    W = camera_prior[2]
+    H = camera_prior[3]
 
     connection = sqlite3.connect(paths.database_path)
     cursor = connection.cursor()
     
     # insert camera
-    cam_id = args.cam_id
-    modelId = 4
+    modelId = 2
     str_ = "INSERT INTO cameras(camera_id, model, width, height, params, prior_focal_length)"
     str_ += " VALUES(?, ?, ?, ?, ?, ?);"
-    cursor.execute(str_, ("1", str(modelId), str(W), str(H), intrinsics, "0"))
+    cursor.execute(str_, (cam_id, str(modelId), str(W), str(H), intrinsics, "0"))
     connection.commit()
 
     # insert images
@@ -153,15 +153,14 @@ def init_db(paths, images, cameras, args):
         str_ = ("INSERT INTO images(image_id, name, camera_id, prior_qw, prior_qx, "
                 "prior_qy, prior_qz, prior_tx, prior_ty, prior_tz) VALUES(?, ?, ?, ?, ?, "
                 "?, ?, ?, ?, ?);")
-        cursor.execute(str_, (str(image_id), image_name, "1", "1.0", "0.0", "0.0", "0.0",
-            "0.0", "0.0", "0.0"))
+        cursor.execute(str_, (str(image_id), image_name, cam_id,
+            "1.0", "0.0", "0.0", "0.0", # q
+            "0.0", "0.0", "0.0")) # t
         connection.commit()
 
     # Close the connection to the database.
     cursor.close()
     connection.close()
-
-
 
 def import_features(images, paths, args):
     # Connect to the database.
@@ -208,6 +207,8 @@ def match_features(images, paths, args):
     print('Matching...')
     
     img_pairs_fn = "%s/image_pairs_to_match.txt"%args.colmap_ws
+    #print(img_pairs_fn)
+    #exit(1)
     with open(img_pairs_fn, 'r') as f:
         raw_pairs = f.readlines()
     
@@ -223,29 +224,66 @@ def match_features(images, paths, args):
  
         match_fn = "%s/%s_%s.txt"%(paths.match_path, fn1.replace("/","-"),
                 fn2.replace("/","-"))
+        #print(match_fn)
         if not os.path.exists(match_fn):
-           print("No such file: %s"%match_fn)
-           false_count += 1
-           exit(1)
- 
-        if args.format == "adalam":
-            matches = np.loadtxt(match_fn)
-        elif (args.format == "horus" or args.format == "anubi" or
-                args.format=="sift"):
-            matches = np.loadtxt(match_fn, skiprows=1)
-        else:
-            raise ValueError("Unknwon format: %s"%args.format)
- 
-        if matches.shape[0] == 0: # bm could not match keypoints
+            print("No such file: %s"%match_fn)
+            print(fn1, fn2)
             matches = np.array([[0,0],[1,1]]).astype(np.uint32) # random matches
-            empty_pairs.append([image_name1, image_name2])
-            empty_count += 1
+            false_count += 1
+            exit(1)
         else:
             if args.format == "adalam":
-                matches = matches[:,:2].astype(np.uint32) # adalam
-            matches = matches.reshape((-1,2))
-            matches = matches.astype(np.uint32)
+                matches = np.loadtxt(match_fn)
+            elif (args.format == "horus" or args.format == "anubis" or
+                    args.format=="sift"):
+                matches = np.loadtxt(match_fn, skiprows=1)
+            else:
+                raise ValueError("Unknwon format: %s"%args.format)
+ 
+            if matches.shape[0] == 0: # bm could not match keypoints
+                matches = np.array([[0,0],[1,1]]).astype(np.uint32) # random matches
+                empty_pairs.append([image_name1, image_name2])
+                empty_count += 1
+            else:
+                if args.format == "adalam":
+                    matches = matches[:,:2].astype(np.uint32) # adalam
+                matches = matches.reshape((-1,2))
+                matches = matches.astype(np.uint32)
         
+        ## uncomment if you have issues with estimateUncalibrated. It means that
+        ## the indices are your matches are fucked up and do not correspond to
+        ## your feature indices. Good luck with that, because this is a very
+        ## annoying bug.
+        #features_path1 = "%s/%s.txt"%(paths.feature_path, image_name1)
+        #features_path2 = "%s/%s.txt"%(paths.feature_path, image_name2)
+
+        #if not os.path.exists(features_path1):
+        #    raise ValueError("No such feature file: %s"%features_path1)
+        #else:
+        #    features1 = np.loadtxt(features_path1, skiprows=1)
+        #    keypoints1 = features1[:,:4].astype(np.float32)
+        #if not os.path.exists(features_path2):
+        #    raise ValueError("No such feature file: %s"%features_path1)
+        #else:
+        #    features2 = np.loadtxt(features_path2, skiprows=1)
+        #    keypoints2 = features2[:,:4].astype(np.float32)
+
+        #match_max1 = np.max(matches[:,0])
+        #match_max2 = np.max(matches[:,1])
+        #image_id1, image_id2 = images[image_name1], images[image_name2]
+        #if (match_max1 >= features1.shape[0]):
+        #    print("fail1: %s %s %d %d"%(image_name1, image_name2, image_id1,
+        #        image_id2))
+        #    print("match_max1 >= # features1: %d >= %s"%(match_max1,
+        #        features1.shape[0]))
+        #if (match_max2 >= features2.shape[0]):
+        #    print("fail2: %s %s %d %d"%(image_name1, image_name2, image_id1,
+        #        image_id2))
+        #    print("match_max2 >= # features2: %d >= %s"%(match_max2,
+        #        features2.shape[0]))
+        #assert(match_max1 < features1.shape[0])
+        #assert(match_max2 < features2.shape[0])
+
         count += 1
 
         ##print(image_name1, image_name2)
@@ -415,10 +453,10 @@ if __name__ == "__main__":
     images, cameras = recover_database_images_and_ids(args)
 
     ## init empty database
-    #init_db(paths, images, cameras, args)
+    init_db(paths, images, cameras, args)
 
-    #import_features(images, paths, args)
-    #match_features(images, paths, args)
+    import_features(images, paths, args)
+    match_features(images, paths, args)
 
     ###geometric_verification(paths, args)
     ###reconstruct(paths, args)

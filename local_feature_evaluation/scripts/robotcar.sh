@@ -15,8 +15,8 @@ res_dir=res/robotcar/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/
   
 survey_id=0
 
-slice_id=1
-while [ "$slice_id" -le 1 ];
+slice_id=16
+while [ "$slice_id" -le 16 ];
 do
   slice_id="$((slice_id+1))"
 
@@ -36,7 +36,7 @@ do
     continue
   fi
 
-  for cam_id in left #rear right
+  for cam_id in rear #left #rear right
   do
     echo "\n\n"$slice_id" "$cam_id" "$survey_id""
     eval_fn="$res_dir""$slice_id"_c"$cam_id"_"$survey_id"/Aachen_eval_"$method".txt
