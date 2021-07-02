@@ -60,7 +60,16 @@ def preprocess_reference_model(paths, args):
     print('Preprocessing the reference model...')
     
     # Recover intrinsics.
-    with open(os.path.join(paths.reference_model_path, 'database_intrinsics.txt')) as f:
+    if args.version == 0:
+        path = os.path.join(paths.reference_model_path, 'database_intrinsics.txt')
+    elif args.version == 1:
+        path = os.path.join(paths.reference_model_path,
+                'aachen_v_1_1/database_intrinsics_v1_1.txt')
+    else:
+        raise ValueError("Unknown version: %d"%args.version)
+
+    with open(path) as f:
+        #os.path.join(paths.reference_model_path, 'database_intrinsics.txt')) as f:
         raw_intrinsics = f.readlines()
     
     camera_parameters = {}
@@ -80,7 +89,15 @@ def preprocess_reference_model(paths, args):
         camera_parameters[image_name] = camera
     
     # Recover poses.
-    with open(os.path.join(paths.reference_model_path, 'aachen_cvpr2018_db.nvm')) as f:
+    if args.version == 0:
+        path = os.path.join(paths.reference_model_path, 'aachen_cvpr2018_db.nvm')
+    elif args.version == 1:
+        path = os.path.join(paths.reference_model_path, 'aachen_v_1_1/aachen_v_1_1.nvm')
+    else:
+        raise ValueError("Unknown version: %d"%args.version)
+
+    with open(path) as f:
+        #os.path.join(paths.reference_model_path, 'aachen_cvpr2018_db.nvm')) as f:
         raw_extrinsics = f.readlines()
 
     # Skip the header.
@@ -158,6 +175,7 @@ def import_features(images, paths, args):
     
     count, false_count = 0,0
     for image_name, image_id in tqdm(images.items(), total=len(images.items())):
+    #for image_name, image_id in images.items():
         if DEBUG:
             if image_name not in subset_fn:
                 continue
@@ -167,11 +185,15 @@ def import_features(images, paths, args):
 
         if not os.path.exists(features_path):
             #print(features_path)
-            false_count += 1
-            keypoints = np.arange(8).reshape((4,2)).astype(np.float32)
-            #continue
+            raise ValueError("Feature path does not exist: %s"%features_path)
+            #false_count += 1
+            #keypoints = np.arange(8).reshape((4,2)).astype(np.float32)
+            #exit(1)
         else:
+            #print("id: %d \t%s"%(image_id, features_path))
             features = np.loadtxt(features_path, skiprows=1)
+            if features.shape[0] == 0:
+                print("Error: features.shape[0] = 0")
             keypoints = features[:,:4].astype(np.float32)
         count += 1
  
@@ -222,12 +244,13 @@ def match_features(images, paths, args):
             # adalam
             fn1 = image_name1
             fn2 = image_name2
-        elif args.format == "horus":
+        elif (args.format == "horus" or args.format == "anubis" or
+                args.format == "sift"):
             fn1 = image_name1.split(".")[0]
             fn2 = image_name2.split(".")[0]
-        elif args.format == "anubis":
-            fn1 = image_name1.split(".")[0]
-            fn2 = image_name2.split(".")[0]
+        #elif args.format == "anubis":
+        #    fn1 = image_name1.split(".")[0]
+        #    fn2 = image_name2.split(".")[0]
         else:
             raise ValueError("Unknown match format: %s"%args.format)
 
@@ -242,11 +265,11 @@ def match_features(images, paths, args):
         else:
             if args.format == "adalam":
                 matches = np.loadtxt(match_fn)
-            if args.format == "horus":
+            if (args.format == "horus" or args.format == "anubis" or 
+                    args.format == "sift"):
                 matches = np.loadtxt(match_fn, skiprows=1)
-            if args.format == "anubis":
-                matches = np.loadtxt(match_fn, skiprows=1)
-
+            #if args.format == "anubis":
+            #    matches = np.loadtxt(match_fn, skiprows=1)
 
             if matches.shape[0] == 0: # bm could not match keypoints
                 matches = np.array([[0,0],[1,1]]).astype(np.uint32) # random matches
@@ -341,8 +364,15 @@ def recover_query_poses(paths, args):
                      '--output_type', 'TXT'])
     
     # Recover query names.
-    query_image_list_path = os.path.join(args.dataset_path, 'queries/night_time_queries_with_intrinsics.txt')
-    
+    if args.version == 0:
+        query_image_list_path = os.path.join(args.dataset_path, 
+                'queries/night_time_queries_with_intrinsics.txt')
+    elif args.version == 1:
+         query_image_list_path = os.path.join(args.dataset_path, 
+                'queries/night_time_queries_with_intrinsics_v1.txt')   
+    else:
+        raise ValueError("Unknwon version %d"%args.version)
+
     with open(query_image_list_path) as f:
         raw_queries = f.readlines()
     
@@ -381,6 +411,7 @@ if __name__ == "__main__":
     parser.add_argument('--num_threads', type=int, required=True)
     parser.add_argument('--format', type=str, required=True)
     parser.add_argument('--match_list', type=str, required=True)
+    parser.add_argument('--version', type=int, required=True)
  
     args = parser.parse_args()
 
@@ -390,7 +421,13 @@ if __name__ == "__main__":
 
     # Create the extra paths.
     paths = types.SimpleNamespace()
-    paths.dummy_database_path = os.path.join(args.dataset_path, 'database.db')
+    if args.version == 0:
+        paths.dummy_database_path = os.path.join(args.dataset_path, 'database.db')
+    elif args.version == 1:
+        paths.dummy_database_path = os.path.join(args.dataset_path, 'database_v1_1.db')
+    else:
+        raise ValueError("Unknown data version: %d"%args.version)
+
     #paths.database_path = os.path.join(args.dataset_path, args.method_name + '.db')
     paths.image_path = os.path.join(args.dataset_path, 'images', 'images_upright')
     #paths.features_path = os.path.join(args.dataset_path, args.method_name)
@@ -411,9 +448,15 @@ if __name__ == "__main__":
     paths.empty_model_path = "%s/sparse-%s-empty"%(args.res_path, args.method_name)
     paths.database_model_path = "%s/sparse-%s-database"%(args.res_path, args.method_name)
     paths.final_model_path = "%s/sparse-%s-final"%(args.res_path, args.method_name)
-    paths.final_txt_model_path = "%s/sparse-%s-final-txt"%(args.res_path, args.method_name)
-    paths.prediction_path = "%s/Aachen_eval_%s.txt"%(args.res_path, args.method_name)
-
+    paths.final_txt_model_path = "%s/sparse-%s-final-txt"%(args.res_path, 
+            args.method_name)
+    if args.version == 0:
+        paths.prediction_path = "%s/Aachen_eval_%s.txt"%(args.res_path, args.method_name)
+    elif args.version == 1:
+        paths.prediction_path = os.path.join(args.dataset_path, 
+                'Aachen_v1_1_eval_[%s].txt'% args.method_name)
+    else:
+        raise ValueError("Unknown data version: %d"%args.version)
 
     # Create a copy of the dummy database.
     if os.path.exists(paths.database_path):

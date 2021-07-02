@@ -2,6 +2,8 @@
 # rci: salloc -p gpufast --gres=gpu:1 --mincpus=16 -t 240
 . ./scripts/export_path.sh
 
+VERSION=1
+
 data=aachen
 data_dir=data/aachen-day-night/
 #colmap_dir="$WS_DIR"tools/colmap/build/src/exe/
@@ -11,17 +13,37 @@ img_dir="$VLB_DIR"/data/aachen-day-night/images/images_upright/
 # TODO
 method=adalam
 method=horus
+method=sift
 #method=anubis
-num_threads=16
+num_threads=8
 
-cluster_name=""
+cluster_name= #"debug"
 #cluster_name=impasse_church
 
 if [ "$cluster_name" = "" ]; then
-  match_list="$data_dir"image_pairs_to_match.txt
+  if [ "$VERSION" -eq 0 ]; then
+    match_list="$data_dir"image_pairs_to_match.txt
+    #match_list="$data_dir"image_pairs_to_match_light1.txt
+  elif [ "$VERSION" -eq 1 ]; then
+    scene_trial=21
+    meta_dir="$AACHEN_META_DIR"/scenes/"$scene_trial"/debug/ #"$cluster_name"/
+    match_list="$meta_dir"/pairs.txt
+
+    #match_list="$data_dir"image_pairs_to_match_v1_1.txt
+  else
+    echo "Error: unknown version: "$VERSION""
+    exit 1
+  fi
   #match_list="$data_dir"image_pairs_to_match_light1.txt
 else
-  scene_trial=20 # query clusters
+  if [ "$VERSION" -eq 0 ]; then
+    scene_trial=20 # query clusters
+  elif [ "$VERSION" -eq 1 ]; then
+    scene_trial=21 # query clusters
+  else
+    echo "Error: unknown version: "$VERSION""
+    exit 1
+  fi
   meta_dir="$AACHEN_META_DIR"/scenes/"$scene_trial"/"$cluster_name"/
   match_list="$meta_dir"/pairs.txt
 fi
@@ -29,12 +51,64 @@ fi
 echo "method: "$method""
 echo "cluster_name: "$cluster_name""
 echo "match_list: "$match_list""
+feat_path="$VLB_DIR"/data/aachen-day-night/features/ #images_upright_subset/
+
+if [ "$method" = sift ]; then
+  horus_match_path="$WS_DIR"/tools/anubis/res/"$method"/
+
+  match_trial=12
+  match_iter_max=1
+  match_iter=0
+
+  loc_iter_max=1
+  echo "feat_path: "$feat_path""
+
+  echo "Match trial: "$match_trial""
+  while [ "$match_iter" -lt "$match_iter_max" ];
+  do
+    echo "Match iter: "$match_iter""
+    
+    match_path="$horus_match_path"/"$match_trial"/"$match_iter"/"$cluster_name"/point_matches/
+    echo "match_path: "$match_path""
+    if ! [ -d "$match_path" ]; then
+      echo "Error: no matches in this directory: "$match_path""
+      exit 1
+    fi
+
+    loc_iter=0
+    while [ "$loc_iter" -lt "$loc_iter_max" ];
+    do
+      echo "Match iter / Loc iter: "$match_iter" / "$loc_iter""
+      res_path=res/"$data"/"$method"/"$match_trial"/"$match_iter"/"$cluster_name"/"$loc_iter"/
+      loc_iter="$((loc_iter+1))"
+
+      rm -rf "$res_path"
+      mkdir -p "$res_path"
+
+      if [ 1 -eq 1 ]; then
+        python3 aachen_custom_matches.py \
+          --dataset_path "$data_dir" \
+          --colmap_path "$colmap_dir" \
+          --method_name "$method" \
+          --res_path "$res_path" \
+          --feat_path "$feat_path" \
+          --match_path "$match_path" \
+          --num_threads "$num_threads" \
+          --format "$method" \
+          --match_list "$match_list" \
+          --version "$VERSION"
+      fi
+ 
+    done
+    match_iter="$((match_iter+1))"
+  done
+fi
 
 if [ "$method" = "horus" ] || [ "$method" = "anubis" ] ; then
   echo "LOCALIZATION for "$method""
+  horus_match_path="$WS_DIR"/tools/anubis/res/localization/
 
   feat_path="$VLB_DIR"/data/aachen-day-night/features/ #images_upright_subset/
-  horus_match_path="$WS_DIR"/tools/anubis/res/localization/
 
   match_trial=59
   match_iter_max=1
