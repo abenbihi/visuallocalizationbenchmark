@@ -26,8 +26,8 @@ data=robotcar
 method=sift
 match_trial=11
 
-#method=horus
-#match_trial=0
+method=horus
+match_trial=8
 
 match_iter=0
 loc_iter=0
@@ -37,8 +37,8 @@ res_dir=res/"$data"/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/
 if [ 1 -eq 1 ]; then
   survey_id=0
 
-  slice_id=16
-  while [ "$slice_id" -le 16 ];
+  slice_id=2
+  while [ "$slice_id" -le 2 ];
   do
     slice_id="$((slice_id+1))"
     if [ "$slice_id" = 1 ]; then
@@ -57,7 +57,8 @@ if [ 1 -eq 1 ]; then
       continue
     fi
 
-    for cam_id in left rear right
+    #for cam_id in left rear right
+    for cam_id in right #rear
     do
       echo ""$slice_id" "$cam_id" "$survey_id""
       sub_res_dir="$res_dir"/"$slice_id"_"$cam_id"_"$survey_id"

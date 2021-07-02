@@ -5,13 +5,14 @@ data=robotcar
 method=sift
 match_trial=11
 
-#method=horus
-#match_trial=0
+method=horus
+match_trial=1
 
 match_iter=0
 loc_iter=0
 
 res_path=res/"$data"/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/
+mkdir -p "$res_path"
 
 global_res_path="$res_path"/ROBOT_eval_"$method".txt
 rm -f "$global_res_path"
@@ -42,18 +43,18 @@ if [ 1 -eq 1 ]; then
       continue
     fi
 
-    # empty ones for this xp
-    if [ "$slice_id" = 40 ]; then
-      continue
-    fi
+    ## empty ones for this xp
+    #if [ "$slice_id" = 40 ]; then
+    #  continue
+    #fi
 
-    if [ "$slice_id" = 41 ]; then
-      continue
-    fi
+    #if [ "$slice_id" = 41 ]; then
+    #  continue
+    #fi
 
-    if [ "$slice_id" = 42 ]; then
-      continue
-    fi
+    #if [ "$slice_id" = 42 ]; then
+    #  continue
+    #fi
 
     for cam_id in left rear right
     do

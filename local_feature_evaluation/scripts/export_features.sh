@@ -1,10 +1,10 @@
 #!/bin/sh
 
 if [ 1 -eq 1 ]; then # extract features from database
-  #database_path=data/aachen-day-night/aachen.db
-  database_path=/media/abenbihi/ext_drive2/ws/tools/vlb/local_feature_evaluation/data/aachen-day-night/aachen.db
+  database_path=data/aachen-day-night/aachen.db
+  #database_path=/media/abenbihi/ext_drive2/ws/tools/vlb/local_feature_evaluation/data/aachen-day-night/aachen.db
   image_path=data/aachen-day-night/images/images_upright/
-  output_path=data/aachen-day-night/features/
+  output_path=data/aachen-day-night/features/all/
   min_num_matches=15
   export_images=0
   binary_feature_files=0

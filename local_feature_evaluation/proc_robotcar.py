@@ -5,14 +5,19 @@ from pyquaternion import Quaternion
 
 WS_DIR = "/home/abenbihi/ws/"
 ROBOT_DIR = "%s/datasets/robotcar_seasons/"%WS_DIR
+META_DIR = "%s/datasets/pydata/robotcar/meta/"%WS_DIR
+SCENE_DIR = "%s/scenes/0/"%META_DIR
 
 def left2rear():
     """Convert the pose evaluation file for the left cameras to one for the
     rear cameras using the provided extrinsics. Let's see if I got better at
     geometry :)."""
+    # TODO
+    cam_id = "right"
+    new_cam_id = "rear"
     
     extrinsics_dir = "%s/extrinsics/"%ROBOT_DIR
-    car_T_c_left = np.loadtxt("%s/left_extrinsics.txt"%extrinsics_dir,
+    car_T_c_left = np.loadtxt("%s/%s_extrinsics.txt"%(extrinsics_dir, cam_id),
             delimiter=",")
     car_T_c_rear = np.loadtxt("%s/rear_extrinsics.txt"%extrinsics_dir,
             delimiter=",")
@@ -40,12 +45,15 @@ def left2rear():
     #exit(0)
     #print(np.dot(c_rear_T_w, w_T_c_rear))
 
-    match_trial = 2
+    method = "horus"
+    match_trial = 8
+
+    method = "sift"
+    match_trial = 11
+
     match_iter = 0
     loc_iter = 0
-    loc_id = 17
-    cam_id = "left"
-    method = "horus"
+    loc_id = 3
 
     left_poses = np.loadtxt("res/robotcar/%s/%d/%d/%d/%d_%s_0/Aachen_eval_%s.txt"%(
         method, match_trial, match_iter, loc_iter, loc_id, cam_id, method), dtype=str)
@@ -71,20 +79,51 @@ def left2rear():
         qw, qx, qy, qz = Quaternion(matrix=c_rear_T_w[:3,:3], atol=1e-5)
         tx, ty, tz = c_rear_T_w[:3,3]
         
-        new_img_fn = img_fn.replace("left", "rear")
+        new_img_fn = img_fn.replace(cam_id, new_cam_id)
         new_poses.append([
             "%s %.6f %.6f %.6f %.6f %.3f %.3f %.3f"%(
                 new_img_fn, qw, qx, qy, qz, tx, ty, tz)])
         
-    new_cam_id = "rear"
-    new_dir = "res/robotcar/%s/%d/%d/%d/%d_%s_0/"%(
-        method, match_trial, match_iter, loc_iter, loc_id, new_cam_id)
+    new_dir = "res/robotcar/%s/%d/%d/%d/%d_%s--%s_0/"%(
+        method, match_trial, match_iter, loc_iter, loc_id, cam_id, new_cam_id)
+    print(new_dir)
     if not os.path.exists(new_dir):
         os.makedirs(new_dir)
 
     new_fn = "%s/Aachen_eval_%s.txt"%(new_dir, method)
     np.savetxt(new_fn, np.array(new_poses), fmt="%s")
 
+def convert_with_estimated_extrinsics(loc_id, cam_id1, cam_id2):
+    """ """
+    # load left/right reference poses
+    images_fn = "%s/%d_%s/images.txt"%(SCENE_DIR, loc_id, cam_id1)
+    images1 = np.loadtxt(images_fn, dtype=str)
+    # remove non-reference images
+    fns1 = images1[:,-1]
+    mask = np.squeeze(np.array([["reference" in l] for l in fns1]))
+    #print(mask)
+    #print(mask.shape)
+    images1 = images1[mask,:]
+    fns1 = images1[:,-1]
+    #print(fns1)
+
+    # load rear reference poses
+    images_fn = "%s/%d_%s/images.txt"%(SCENE_DIR, loc_id, cam_id2)
+    images2 = np.loadtxt(images_fn, dtype=str)
+    # remove non-reference images
+    fns2 = images2[:,-1]
+    mask = np.squeeze(np.array([["reference" in l] for l in fns2]))
+    images2 = images2[mask,:]
+    fns2 = images2[:,-1]
+
+    # least-square estimate of the extrinsic
+
+    # convert the left/right estimated poses to rear poses
 
 if __name__=="__main__":
-    left2rear()
+    #left2rear()
+
+    loc_id = 3
+    cam_id1 = "right"
+    cam_id2 = "rear"
+    convert_with_estimated_extrinsics(loc_id, cam_id1, cam_id2)
