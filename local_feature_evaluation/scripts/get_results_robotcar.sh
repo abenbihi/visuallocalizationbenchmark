@@ -1,5 +1,7 @@
 #!/bin/sh
 
+. ./scripts/export_path.sh
+
 #TODO
 server=rci
 server=lascar
@@ -27,7 +29,7 @@ method=sift
 match_trial=11
 
 method=horus
-match_trial=8
+match_trial=9
 
 match_iter=0
 loc_iter=0
@@ -37,28 +39,18 @@ res_dir=res/"$data"/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/
 if [ 1 -eq 1 ]; then
   survey_id=0
 
-  slice_id=2
-  while [ "$slice_id" -le 2 ];
-  do
+  #slice_id=2
+  #while [ "$slice_id" -le 2 ];
+  #do
     slice_id="$((slice_id+1))"
-    if [ "$slice_id" = 1 ]; then
-      continue
-    fi
-
-    if [ "$slice_id" = 7 ]; then
-      continue
-    fi
-
-    if [ "$slice_id" = 8 ]; then
-      continue
-    fi
-
-    if [ "$slice_id" = 43 ]; then
+  while read -r slice_id
+  do
+    if [ "$slice_id" = 1 ] || [ "$slice_id" -eq 7 ] || [ "$slice_id" -eq 8 ] || [ "$slice_id" -eq 43 ]; then
       continue
     fi
 
     #for cam_id in left rear right
-    for cam_id in right #rear
+    for cam_id in left right #rear
     do
       echo ""$slice_id" "$cam_id" "$survey_id""
       sub_res_dir="$res_dir"/"$slice_id"_"$cam_id"_"$survey_id"
@@ -69,7 +61,7 @@ if [ 1 -eq 1 ]; then
         exit 1
       fi
     done
-  done
+  done < "$ROBOT_META_DIR"/debug_locations.txt
 fi
 
 if [ 1 -eq 1 ]; then

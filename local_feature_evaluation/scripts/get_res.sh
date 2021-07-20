@@ -44,15 +44,15 @@ method=anubis
 match_trial=53
 
 method=horus
-match_trial=71
+match_trial=171
 
 #method=sift
-#match_trial=51
+#match_trial=76
 
-#while [ "$match_trial" -le 51 ];
-#do
-#  match_trial="$((match_trial+1))"
-loc_iter_max=1
+while [ "$match_trial" -le 171 ];
+do
+  match_trial="$((match_trial+1))"
+loc_iter_max=2
 match_iter_max=1
 
 res_path=res/"$data"/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/
@@ -60,7 +60,7 @@ res_path=res/"$data"/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/
 match_iter=0
 while [ "$match_iter" -lt "$match_iter_max" ];
 do
-  loc_iter=0
+  loc_iter=1
   while [ "$loc_iter" -lt "$loc_iter_max" ];
   do
     res_path=res/"$data"/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/
@@ -78,7 +78,7 @@ do
   done
   match_iter="$((match_iter+1))"
 done
-#done
+done # while [ "$match_trial" -le  ];
 
 #for trial in "$trials"
 #do

@@ -8,7 +8,8 @@ VERSION=0
 
 # TODO
 #session_id=4d3btcg5rfkjv0pn6mk7j4jml473zz9r
-session_id=8x9iz315tt0jgjj8njq2xhv1sdboxy5i
+#session_id=8x9iz315tt0jgjj8njq2xhv1sdboxy5i
+session_id=it6mzc6s8zabb0dwbt17f1kti0qn2h3y
 
 if [ "$data" = aachen ]; then
   # submit clustered results
@@ -19,7 +20,7 @@ if [ "$data" = aachen ]; then
     match_trial=55
 
     method=horus
-    match_trial=70
+    match_trial=74
 
     match_iter=0
     loc_iter=0
@@ -59,17 +60,17 @@ if [ "$data" = aachen ]; then
   else # submit complete results
 
     method=horus
-    match_trial=71
+    match_trial=113
 
-    #method=sift
-    #match_trial=51
+    method=sift
+    match_trial=76
 
     match_iter=0
     loc_iter=0
 
-    #while [ "$match_trial" -le 65 ];
-    #do
-    #  match_trial="$((match_trial+1))"
+    while [ "$match_trial" -le 85 ];
+    do
+      match_trial="$((match_trial+1))"
 
       method_name="$method"_"$match_trial"_"$match_iter"_"$loc_iter"
       if [ "$VERSION" -eq 0 ]; then
@@ -107,7 +108,7 @@ if [ "$data" = aachen ]; then
       #break
 
       sleep 1
-    #done
+    done # while [ "$match_trial" -le  ];
   fi
 elif [ "$data" = cmu ]; then
   method=sift
