@@ -149,3 +149,15 @@ id0_1 id1_1
 ...
 id0_N id1_N
 ```
+
+# WACV
+
+## Robotcar
+```
+./scripts/get_results.sh
+./srcipts/gather_results_robotcar.sh # gather results from slices into 1 file
+python proc_robotcar.py # (left2rear) convert poses from left/right to rear
+python proc_robotcar.py # (fuse_left_and_right) fuse left-right poses to one file.
+```
+
+

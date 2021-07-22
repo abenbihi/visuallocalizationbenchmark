@@ -13,6 +13,16 @@ def left2rear():
     rear cameras using the provided extrinsics. Let's see if I got better at
     geometry :)."""
     # TODO
+    method = "horus"
+    match_trial = 10
+
+    #method = "sift"
+    #match_trial = 91 
+
+    match_iter = 0
+    loc_iter = 3
+    #loc_id = 3
+
     cam_id = "right"
     new_cam_id = "rear"
     
@@ -45,23 +55,15 @@ def left2rear():
     #exit(0)
     #print(np.dot(c_rear_T_w, w_T_c_rear))
 
-    method = "horus"
-    match_trial = 9
 
-    #method = "sift"
-    #match_trial = 11
-
-    match_iter = 0
-    loc_iter = 0
-    #loc_id = 3
-
-    for loc_id in [44, 26, 11, 41, 19, 29, 9, 34, 33, 14, 45, 27, 28]:
-        left_poses_path = "res/robotcar/%s/%d/%d/%d/%d_%s_0/Aachen_eval_%s.txt"%(
-            method, match_trial, match_iter, loc_iter, loc_id, cam_id, method)
-        if not os.path.exists(left_poses_path):
-            continue
-    #if 1==1:
-        #left_poses_path = "res/robotcar/sift/11/0/0/ROBOT_eval_sift_subset_debug_%s.txt"%cam_id
+    #for loc_id in [44, 26, 11, 41, 19, 29, 9, 34, 33, 14, 45, 27, 28]:
+    #    left_poses_path = "res/robotcar/%s/%d/%d/%d/%d_%s_0/Aachen_eval_%s.txt"%(
+    #        method, match_trial, match_iter, loc_iter, loc_id, cam_id, method)
+    #    if not os.path.exists(left_poses_path):
+    #        continue
+    if 1==1:
+        left_poses_path = "res/robotcar/%s/%d/0/%d/ROBOT_eval_%s_%s.txt"%(
+                method, match_trial, loc_iter, method, cam_id)
         left_poses = np.loadtxt(left_poses_path, dtype=str)
 
         new_poses = []
@@ -97,12 +99,13 @@ def left2rear():
         #    os.makedirs(new_dir)
         #new_fn = "%s/Aachen_eval_%s.txt"%(new_dir, method)
 
-        new_fn = "res/robotcar/%s/%d/%d/%d/%d_%s_0/Aachen_eval_%s_%s.txt"%(
-            method, match_trial, match_iter, loc_iter, loc_id, cam_id, method,
-            new_cam_id)
+        #new_fn = "res/robotcar/%s/%d/%d/%d/%d_%s_0/Aachen_eval_%s_%s.txt"%(
+        #    method, match_trial, match_iter, loc_iter, loc_id, cam_id, method,
+        #    new_cam_id)
 
 
-        #new_fn = "res/robotcar/sift/11/0/0/ROBOT_eval_sift_subset_debug_%s_rear.txt"%cam_id
+        new_fn = "res/robotcar/%s/%d/0/%d/ROBOT_eval_%s_%s_rear.txt"%(
+                method, match_trial, loc_iter, method, cam_id)
         print(new_fn)
         np.savetxt(new_fn, np.array(new_poses), fmt="%s")
 
@@ -133,6 +136,89 @@ def convert_with_estimated_extrinsics(loc_id, cam_id1, cam_id2):
 
     # convert the left/right estimated poses to rear poses
 
+def fuse_left_and_right():
+    """ """
+    method = "horus"
+    match_trial = 10
+
+    #method = "sift"
+    #match_trial = 89
+
+    match_iter = 0
+    loc_iter = 3
+
+    left_poses_path = "res/robotcar/%s/%d/0/%d/ROBOT_eval_%s_left_rear.txt"%(
+            method, match_trial, loc_iter, method)
+    left_poses = np.loadtxt(left_poses_path, dtype=str)
+
+    right_poses_path = "res/robotcar/%s/%d/0/%d/ROBOT_eval_%s_right_rear.txt"%(
+            method, match_trial, loc_iter, method)
+    right_poses = np.loadtxt(right_poses_path, dtype=str)
+    print("# left poses: %d"%(left_poses.shape[0]))
+    print("# right poses: %d"%(right_poses.shape[0]))
+
+    # find the common images to both
+    left_images = left_poses[:, 0]
+    right_images = right_poses[:, 0]
+
+    common = set()
+    delta_left = []
+    delta_right = []
+
+    for l in left_images:
+        timestamp = l.split(".")[0].split("/")[1]
+        #if "right/%s.jpg"%timestamp in right_images:
+        if "rear/%s.jpg"%timestamp in right_images:
+            common.add(timestamp)
+        else:
+            delta_left.append(timestamp)
+    print("# common: %d"%(len(common)))
+    
+    for l in right_images:
+        timestamp = l.split(".")[0].split("/")[1]
+        #if "left/%s.jpg"%timestamp in left_images:
+        if "rear/%s.jpg"%timestamp in left_images:
+            common.add(timestamp)
+        else:
+            delta_right.append(timestamp)
+    print("# delta_left: %d"%(len(delta_left)))
+    print("# delta_right: %d"%(len(delta_right)))
+    #print("# common: %d"%(len(common)))
+
+    # keep common from left
+    results = []
+    for l in common:
+        #idx = np.where(left_images == "left/%s.jpg"%l)[0][0]
+        idx = np.where(left_images == "rear/%s.jpg"%l)[0][0]
+        #print(idx)
+        results.append(left_poses[idx,:])
+    
+    for l in delta_left:
+        #idx = np.where(left_images == "left/%s.jpg"%l)[0][0]
+        idx = np.where(left_images == "rear/%s.jpg"%l)[0][0]
+        #print(idx)
+        results.append(left_poses[idx,:])
+
+    #print(right_images)
+    #print("right/%s.jpg"%l)
+    #print(left_poses_path)
+    #print(right_poses_path)
+
+    for l in delta_right:
+        #idx = np.where(right_images == "right/%s.jpg"%l)[0][0]
+        idx = np.where(right_images == "rear/%s.jpg"%l)[0][0]
+        #print(idx)
+        results.append(right_poses[idx,:])
+
+    print("# poses: %d"%(len(results)))
+
+    # add delta left and delta right
+    poses_path = "res/robotcar/%s/%d/0/%d/ROBOT_eval_%s_fuse_rear.txt"%(
+            method, match_trial, loc_iter, method)
+    print(poses_path)
+    np.savetxt(poses_path, np.array(results), fmt="%s")
+
+
 if __name__=="__main__":
     #left2rear()
 
@@ -140,5 +226,7 @@ if __name__=="__main__":
     cam_id1 = "right"
     cam_id2 = "rear"
 
-    left2rear()
+    #left2rear()
+
+    fuse_left_and_right()
     #convert_with_estimated_extrinsics(loc_id, cam_id1, cam_id2)

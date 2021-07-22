@@ -26,13 +26,13 @@ dst="$address":"$remote_ws"
 data=robotcar
 
 method=sift
-match_trial=11
+match_trial=91
 
 method=horus
-match_trial=9
+match_trial=10
 
 match_iter=0
-loc_iter=0
+loc_iter=3
       
 res_dir=res/"$data"/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/
 
@@ -42,7 +42,7 @@ if [ 1 -eq 1 ]; then
   #slice_id=2
   #while [ "$slice_id" -le 2 ];
   #do
-    slice_id="$((slice_id+1))"
+  #  slice_id="$((slice_id+1))"
   while read -r slice_id
   do
     if [ "$slice_id" = 1 ] || [ "$slice_id" -eq 7 ] || [ "$slice_id" -eq 8 ] || [ "$slice_id" -eq 43 ]; then
