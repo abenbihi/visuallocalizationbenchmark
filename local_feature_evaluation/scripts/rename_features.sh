@@ -2,10 +2,10 @@
 
 
 img_dir=./data/aachen-day-night/images/images_upright/
-feat_dir=./data/aachen-day-night/features/
+feat_dir=./data/aachen-day-night/features/all/
 
 # rename sequences
-if [ 0 -eq 1 ]; then
+if [ 1 -eq 1 ]; then
     seq_id=0
     while [ "$seq_id" -le 7 ];
     do
@@ -63,7 +63,7 @@ fi
 
 
 # rename go pro directory
-if [ 1 -eq 1 ]; then
+if [ 0 -eq 1 ]; then
     #for suffix in sequences/gopro3_5fps  sequences/gopro3_undistorted
     for suffix in sequences/gopro3_undistorted
     do

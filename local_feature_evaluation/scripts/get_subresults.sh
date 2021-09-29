@@ -1,4 +1,5 @@
 #!/bin/sh
+# Split the global results by clusters.
 
 . ./scripts/export_path.sh
 
@@ -13,16 +14,16 @@ scene_trial=20 # colmap format
 method=adalam
 match_trial=0
 
-#method=horus
-#match_trial=43
+method=horus
+match_trial=68
 
-method=anubis
-match_trial=55
+#method=anubis
+#match_trial=55
 
 #method=sift
 #match_trial=5
 
-match_iter=1
+match_iter=0
 loc_iter=0
 res_path=res/"$data"/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/
 all_res_fn="$res_path"/Aachen_eval_"$method".txt

@@ -103,6 +103,7 @@ def main():
         #key_file_name = os.path.join(args.output_path, base_name + ".sift")
         key_file_name = os.path.join(args.output_path, base_name + ".jpg.txt")
         if os.path.exists(key_file_name):
+            print("Already exists: %s"%key_file_name)
             continue
 
         cursor.execute("SELECT data FROM keypoints WHERE image_id=?;",

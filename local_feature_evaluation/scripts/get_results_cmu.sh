@@ -27,7 +27,7 @@ method=sift
 match_trial=10
 
 method=horus
-match_trial=0
+match_trial=1
 
 match_iter=0
 loc_iter=0

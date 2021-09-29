@@ -26,7 +26,7 @@ fi
 dst="$address":"$remote_ws"
 echo "dst: "$dst""
 
-feat_dir=./data/aachen-day-night/features/
+feat_dir=./data/aachen-day-night/features/all/
 remote_feat_dir="$dst"/tools/vlb/local_feature_evaluation/data/aachen-day-night/features/
 
 scene_trial=17
@@ -37,8 +37,12 @@ image_path="$meta_dir"/images.txt
 
 while read -r line
 do
-  fn="$(echo "$line" | cut -d' ' -f10)"
   echo "$line"
+  if [ "$line" = "" ]; then
+    continue
+    #break
+  fi
+  fn="$(echo "$line" | cut -d' ' -f10)"
   echo "$fn"
   local_feat_fn="$feat_dir""$fn".txt
   
@@ -47,8 +51,10 @@ do
   echo "$local_feat_fn"
   echo "$remote_feat_fn"
 
-  rsync -avh "$local_feat_fn"
-  rsync -avh "$remote_feat_fn"
-
-  break
+  rsync -avh "$local_feat_fn" "$remote_feat_fn"
+  if [ "$?" -ne 0 ]; then
+    echo "Error when sending "$local_feat_fn" to "$remote_feat_fn""
+    exit 1
+  fi
+  #break
 done < "$image_path"
