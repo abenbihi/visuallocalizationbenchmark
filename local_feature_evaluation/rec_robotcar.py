@@ -25,6 +25,9 @@ from utils import quaternion_to_rotation_matrix, camera_center_to_translation
 import sys
 IS_PYTHON3 = sys.version_info[0] >= 3
 
+import warnings
+warnings.filterwarnings('ignore') # to avoid warnings for empty matches
+
 def array_to_blob(array):
     if IS_PYTHON3:
         return array.tostring()
@@ -195,7 +198,9 @@ def image_ids_to_pair_id(image_id1, image_id2):
         return 2147483647 * image_id1 + image_id2
 
 
-def match_features(images, paths, args):
+def match_features_fusion0(images, paths, args):
+    """Naive do the union of my matches and sift matches regardless of doublon
+    (which can lead to degeneracies, but in practice it works well)."""
     # Connect to the database.
     connection = sqlite3.connect(paths.database_path)
     cursor = connection.cursor()
@@ -222,34 +227,39 @@ def match_features(images, paths, args):
         fn1 = image_name1.split(".")[0]
         fn2 = image_name2.split(".")[0]
  
-        match_fn = "%s/%s_%s.txt"%(paths.match_path, fn1.replace("/","-"),
-                fn2.replace("/","-"))
-        #print(match_fn)
-        if not os.path.exists(match_fn):
-            print("No such file: %s"%match_fn)
-            print(fn1, fn2)
-            matches = np.array([[0,0],[1,1]]).astype(np.uint32) # random matches
-            false_count += 1
-            exit(1)
-        else:
-            if args.format == "adalam":
-                matches = np.loadtxt(match_fn)
-            elif (args.format == "horus" or args.format == "anubis" or
-                    args.format=="sift"):
-                matches = np.loadtxt(match_fn, skiprows=1)
-            else:
-                raise ValueError("Unknwon format: %s"%args.format)
- 
-            if matches.shape[0] == 0: # bm could not match keypoints
-                matches = np.array([[0,0],[1,1]]).astype(np.uint32) # random matches
-                empty_pairs.append([image_name1, image_name2])
-                empty_count += 1
+        match_paths = [paths.match_path]
+        if args.use_extra_matches == 1:
+            match_paths.append(paths.match_path2)
+        
+        all_matches = []
+        for match_path in match_paths:
+            match_fn = "%s/%s_%s.txt"%(match_path, fn1.replace("/","-"),
+                    fn2.replace("/","-"))
+
+            if not os.path.exists(match_fn):
+                print("No such file: %s"%match_fn)
+                exit(0)
+
             else:
                 if args.format == "adalam":
-                    matches = matches[:,:2].astype(np.uint32) # adalam
-                matches = matches.reshape((-1,2))
-                matches = matches.astype(np.uint32)
-        
+                    matches = np.loadtxt(match_fn)
+                if (args.format == "horus" or args.format == "anubis" or 
+                        args.format == "sift"):
+                    matches = np.loadtxt(match_fn, skiprows=1)
+
+                if matches.shape[0] == 0: # bm could not match keypoints
+                    matches = np.array([[0,0],[1,1]]).astype(np.uint32) # random matches
+                    empty_count += 1
+                    empty_pairs.append([image_name1, image_name2])
+                else:
+                    if args.format == "adalam":
+                        matches = matches[:,:2].astype(np.uint32) # adalam
+                    matches = matches.reshape((-1,2))
+                    matches = matches.astype(np.uint32)
+
+            all_matches.append(matches)
+        matches = np.vstack(all_matches)
+
         ## uncomment if you have issues with estimateUncalibrated. It means that
         ## the indices are your matches are fucked up and do not correspond to
         ## your feature indices. Good luck with that, because this is a very
@@ -294,6 +304,165 @@ def match_features(images, paths, args):
         #descriptors1 = torch.from_numpy(descriptors1).to(device)
         #descriptors2 = torch.from_numpy(descriptors2).to(device)      
         #matches = mutual_nn_matcher(descriptors1, descriptors2).astype(np.uint32)
+
+        image_id1, image_id2 = images[image_name1], images[image_name2]
+        image_pair_id = image_ids_to_pair_id(image_id1, image_id2)
+        if image_pair_id in image_pair_ids:
+            continue
+        image_pair_ids.add(image_pair_id)
+
+        if image_id1 > image_id2:
+            matches = matches[:, [1, 0]]
+        
+        matches_str = matches.tostring()
+        cursor.execute("INSERT INTO matches(pair_id, rows, cols, data) VALUES(?, ?, ?, ?);",
+                       (str(image_pair_id), matches.shape[0], matches.shape[1], matches_str))
+        connection.commit()
+    
+    print("# negatives matches / # empty matches / total: %d / %d / %d"%(
+        false_count, empty_count, count))
+    # Close the connection to the database.
+    cursor.close()
+    connection.close()
+
+
+def match_features(images, paths, args):
+    """Add sift matches on keypoints not already matched by horus."""
+    # Connect to the database.
+    connection = sqlite3.connect(paths.database_path)
+    cursor = connection.cursor()
+
+    cursor.execute("DELETE FROM matches;")
+    connection.commit()
+
+    # Match the features and insert the matches in the database.
+    print('Matching...')
+    
+    img_pairs_fn = "%s/image_pairs_to_match.txt"%args.colmap_ws
+    #print(img_pairs_fn)
+    #exit(1)
+    with open(img_pairs_fn, 'r') as f:
+        raw_pairs = f.readlines()
+    
+    empty_pairs = []
+    
+    image_pair_ids = set()
+    count, false_count, empty_count = 0,0,0
+    for raw_pair in tqdm(raw_pairs, total=len(raw_pairs)):
+        image_name1, image_name2 = raw_pair.strip('\n').split(' ')
+
+        fn1 = image_name1.split(".")[0]
+        fn2 = image_name2.split(".")[0]
+ 
+        # load matches
+        match_fn = "%s/%s_%s.txt"%(paths.match_path, fn1.replace("/","-"),
+                fn2.replace("/","-"))
+        #matches = np.loadtxt(match_fn, skiprows=1, dtype=int).reshape((-1,2))
+        #print(match_fn)
+        matches = np.loadtxt(match_fn, skiprows=1).reshape((-1,4))
+        matches = matches[:,:2].astype(np.int32).reshape((-1,2))
+        #print(matches.shape)
+
+        if args.use_extra_matches == 1:
+            # load additional sift matches
+            match_fn = "%s/%s_%s.txt"%(paths.match_path2, fn1.replace("/","-"),
+                    fn2.replace("/","-"))
+            #print(match_fn)
+            #exit(1)
+            sift_matches = np.loadtxt(match_fn, skiprows=1, dtype=int).reshape((-1,2))
+
+            #sift_matches = np.loadtxt(match_fn, skiprows=1).reshape((-1,3))
+            #sift_matches = sift_matches[:,:2].astype(np.int32).reshape((-1,2))
+            #print(sift_matches.shape)
+
+            if sift_matches.shape[0] != 0:
+                if matches.shape[0] == 0:
+                    matches = sift_matches
+                else:
+                    ## KO
+                    ##print(matches.shape)
+                    ##print(np.max(sift_matches))
+                    ##print(match_fn)
+                    #MAX_NUM_FEAT = 32000 # because I do not want to re-open the features
+                    #is_taken_horus0 = np.zeros(MAX_NUM_FEAT, dtype=np.uint8)
+                    #is_taken_horus1 = np.zeros(MAX_NUM_FEAT, dtype=np.uint8)
+                    ##print(matches.shape)
+                    ##print(matches[:,0].shape)
+                    #is_taken_horus0[matches[:,0]] = 1
+                    #is_taken_horus1[matches[:,1]] = 1
+
+                    ##keep_sift_matches = (1 - is_taken_horus0[sift_matches[:,0]] * 
+                    ##        is_taken_horus1[sift_matches[:,1]])
+                    #keep_sift_matches = (1 - np.minimum(1, 
+                    #    is_taken_horus0[sift_matches[:,0]] + 
+                    #    is_taken_horus1[sift_matches[:,1]]))
+
+                    #matches = np.vstack((matches, sift_matches[keep_sift_matches,:]))
+
+                    MAX_NUM_FEAT = 32000 # because I do not want to re-open the features
+
+                    ## add sift matches of keypoints not already matched by horus
+                    #is_taken_horus0 = np.zeros(MAX_NUM_FEAT, dtype=np.uint8)
+                    #is_taken_horus1 = np.zeros(MAX_NUM_FEAT, dtype=np.uint8)
+                    #is_taken_horus0[matches[:,0]] = 1
+                    #is_taken_horus1[matches[:,1]] = 1
+                    #is_taken_sift0 = is_taken_horus0[sift_matches[:,0]]
+                    #is_taken_sift1 = is_taken_horus1[sift_matches[:,1]]
+                    #mask = (~is_taken_sift0.astype(bool) & ~is_taken_sift1.astype(bool))
+                    #sift_matches_ok = sift_matches[mask,:]
+                    #matches = np.vstack((matches, sift_matches_ok))
+
+                    # add horus matches of keypoints not already matched by h
+                    is_taken_sift0 = np.zeros(MAX_NUM_FEAT, dtype=np.uint8)
+                    is_taken_sift1 = np.zeros(MAX_NUM_FEAT, dtype=np.uint8)
+                    is_taken_sift0[sift_matches[:,0]] = 1
+                    is_taken_sift1[sift_matches[:,1]] = 1
+                    is_taken_horus0 = is_taken_sift0[matches[:,0]]
+                    is_taken_horus1 = is_taken_sift1[matches[:,1]]
+                    mask = (~is_taken_horus0.astype(bool) & ~is_taken_horus1.astype(bool))
+                    horus_matches_ok = matches[mask,:]
+                    matches = np.vstack((sift_matches, horus_matches_ok))
+        
+        if matches.shape[0] == 0:
+            matches = np.array([[0,0],[1,1]]).astype(np.uint32) # random matches
+            empty_count += 1
+
+        matches = matches.astype(np.uint32)
+        count += 1
+
+        ## uncomment if you have issues with estimateUncalibrated. It means that
+        ## the indices are your matches are fucked up and do not correspond to
+        ## your feature indices. Good luck with that, because this is a very
+        ## annoying bug.
+        #features_path1 = "%s/%s.txt"%(paths.feature_path, image_name1)
+        #features_path2 = "%s/%s.txt"%(paths.feature_path, image_name2)
+
+        #if not os.path.exists(features_path1):
+        #    raise ValueError("No such feature file: %s"%features_path1)
+        #else:
+        #    features1 = np.loadtxt(features_path1, skiprows=1)
+        #    keypoints1 = features1[:,:4].astype(np.float32)
+        #if not os.path.exists(features_path2):
+        #    raise ValueError("No such feature file: %s"%features_path1)
+        #else:
+        #    features2 = np.loadtxt(features_path2, skiprows=1)
+        #    keypoints2 = features2[:,:4].astype(np.float32)
+
+        #match_max1 = np.max(matches[:,0])
+        #match_max2 = np.max(matches[:,1])
+        #image_id1, image_id2 = images[image_name1], images[image_name2]
+        #if (match_max1 >= features1.shape[0]):
+        #    print("fail1: %s %s %d %d"%(image_name1, image_name2, image_id1,
+        #        image_id2))
+        #    print("match_max1 >= # features1: %d >= %s"%(match_max1,
+        #        features1.shape[0]))
+        #if (match_max2 >= features2.shape[0]):
+        #    print("fail2: %s %s %d %d"%(image_name1, image_name2, image_id1,
+        #        image_id2))
+        #    print("match_max2 >= # features2: %d >= %s"%(match_max2,
+        #        features2.shape[0]))
+        #assert(match_max1 < features1.shape[0])
+        #assert(match_max2 < features2.shape[0])
 
         image_id1, image_id2 = images[image_name1], images[image_name2]
         image_pair_id = image_ids_to_pair_id(image_id1, image_id2)
@@ -404,13 +573,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--colmap_ws', required=True, type=str)
     parser.add_argument('--feat_dir', type=str)
-    parser.add_argument('--match_dir', type=str)
     parser.add_argument('--slice_id', type=int)
     parser.add_argument('--cam_id', type=str)
     parser.add_argument('--survey_id', type=int)
     parser.add_argument('--num_threads', type=int, required=True)
     parser.add_argument('--format', type=str, required=True)
- 
+    parser.add_argument('--match_path', type=str, required=True)
+    parser.add_argument('--match_path2', type=str)
+    parser.add_argument('--use_extra_matches', type=int, required=True)
+    parser.add_argument('--init_db', type=int, required=True)
     #parser.add_argument('--dataset_path', required=True, help='Path to the dataset')
     #parser.add_argument('--colmap_path', required=True, help='Path to the COLMAP executable folder')
     #parser.add_argument('--method_name', required=True, help='Name of the method')
@@ -431,7 +602,8 @@ if __name__ == "__main__":
     #paths.features_path = os.path.join(args.dataset_path, args.method_name)
     #
     paths.feature_path = args.feat_dir
-    paths.match_path = args.match_dir
+    paths.match_path = args.match_path
+    paths.match_path2 = args.match_path2
     paths.database_path = "%s/database.db"%args.colmap_ws
     ##paths.empty_model_path = os.path.join(args.res_path, 'sparse-%s-empty' % args.method_name)
     ##paths.database_model_path = os.path.join(args.res_path, 'sparse-%s-database' % args.method_name)
@@ -446,16 +618,24 @@ if __name__ == "__main__":
     ##shutil.copyfile(paths.dummy_database_path, paths.database_path)
     ##
     
-    # create empty database
+    if args.use_extra_matches:
+        assert(os.path.exists(args.match_path2))
 
     # import images and cameras
     camera_parameters = preprocess_reference_model(args)
     images, cameras = recover_database_images_and_ids(args)
 
-    ## init empty database
-    init_db(paths, images, cameras, args)
+    # init empty database
+    if args.init_db == 1:
+        print("Creating database ...")
+        init_db(paths, images, cameras, args)
+        import_features(images, paths, args)
+    else:
+        # Check that the database already with imported features already
+        # exists.
+        if not os.path.exists(paths.database_path):
+            raise ValueError("You should provide an initialized database to start from.")
 
-    import_features(images, paths, args)
     match_features(images, paths, args)
 
     ###geometric_verification(paths, args)
