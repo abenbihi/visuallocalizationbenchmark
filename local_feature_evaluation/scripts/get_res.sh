@@ -49,18 +49,29 @@ match_trial=171
 #method=sift
 #match_trial=76
 
-while [ "$match_trial" -le 171 ];
-do
-  match_trial="$((match_trial+1))"
+method=ra
+match_trial=5
+
+method=superglue
+match_trial=0
+
+method=pmf
+match_trial=0
+
+
+
+#while [ "$match_trial" -le 171 ];
+#do
+#  match_trial="$((match_trial+1))"
 loc_iter_max=2
 match_iter_max=1
 
 res_path=res/"$data"/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/
 
-match_iter=0
-while [ "$match_iter" -lt "$match_iter_max" ];
-do
-  loc_iter=1
+match_iter= #0
+#while [ "$match_iter" -lt "$match_iter_max" ];
+#do
+  loc_iter=0
   while [ "$loc_iter" -lt "$loc_iter_max" ];
   do
     res_path=res/"$data"/"$method"/"$match_trial"/"$match_iter"/"$loc_iter"/
@@ -76,9 +87,9 @@ do
     fi
     loc_iter="$((loc_iter+1))"
   done
-  match_iter="$((match_iter+1))"
-done
-done # while [ "$match_trial" -le  ];
+#  match_iter="$((match_iter+1))"
+#done
+#done # while [ "$match_trial" -le  ];
 
 #for trial in "$trials"
 #do

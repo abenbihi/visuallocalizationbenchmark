@@ -160,4 +160,12 @@ python proc_robotcar.py # (left2rear) convert poses from left/right to rear
 python proc_robotcar.py # (fuse_left_and_right) fuse left-right poses to one file.
 ```
 
+# Localisation on any dataset and any local features
+
+## Dataset Preparation
+
+Generate the following information:
+- image list (db + q)
+- query list
+- image pairs to match (db/db + db/q)
 
